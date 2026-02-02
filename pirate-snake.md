@@ -1,0 +1,480 @@
+# Pirate Snake Game
+
+```html
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pirate Snake Game</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Arial', sans-serif;
+            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            color: white;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+
+        h1 {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+        }
+
+        .stats {
+            display: flex;
+            gap: 30px;
+            font-size: 1.2rem;
+            margin-bottom: 10px;
+        }
+
+        .stat {
+            background: rgba(0, 0, 0, 0.3);
+            padding: 8px 15px;
+            border-radius: 8px;
+        }
+
+        .controls {
+            margin-bottom: 20px;
+            text-align: center;
+        }
+
+        button {
+            background: #ff6b6b;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            font-size: 1rem;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 0 5px;
+            transition: background 0.3s;
+        }
+
+        button:hover {
+            background: #ff5252;
+        }
+
+        canvas {
+            border: 4px solid #fff;
+            box-shadow: 0 0 20px rgba(0, 0, 0, 0.5);
+            background: #0a1929;
+        }
+
+        .game-over {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0, 0, 0, 0.9);
+            padding: 40px;
+            border-radius: 15px;
+            text-align: center;
+            display: none;
+        }
+
+        .game-over h2 {
+            font-size: 2rem;
+            margin-bottom: 20px;
+        }
+
+        .instructions {
+            background: rgba(0, 0, 0, 0.3);
+            padding: 15px;
+            border-radius: 8px;
+            margin-top: 20px;
+            max-width: 600px;
+            font-size: 0.9rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🏴‍☠️ Pirate Snake Adventure 🏴‍☠️</h1>
+        <div class="stats">
+            <div class="stat">Score: <span id="score">0</span></div>
+            <div class="stat">High Score: <span id="highScore">0</span></div>
+            <div class="stat">Speed: <span id="speed">1</span></div>
+        </div>
+    </div>
+
+    <div class="controls">
+        <button onclick="startGame(1)">1 Player</button>
+        <button onclick="startGame(2)">2 Players</button>
+        <button onclick="togglePause()">Pause</button>
+    </div>
+
+    <canvas id="gameCanvas" width="600" height="600"></canvas>
+
+    <div class="game-over" id="gameOver">
+        <h2>Game Over!</h2>
+        <p style="font-size: 1.5rem; margin-bottom: 20px;">Final Score: <span id="finalScore">0</span></p>
+        <button onclick="location.reload()">Play Again</button>
+    </div>
+
+    <div class="instructions">
+        <strong>Controls:</strong><br>
+        Player 1: Arrow Keys<br>
+        Player 2: WASD Keys<br><br>
+        <strong>Coins:</strong> $5 (Bronze) | $25 (Silver) | $100 (Gold)<br>
+        Watch out for the ghost pirate snake that appears randomly!
+    </div>
+
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        const gridSize = 20;
+        const tileCount = canvas.width / gridSize;
+
+        let score = 0;
+        let highScore = localStorage.getItem('pirateSnakeHighScore') || 0;
+        let speed = 1;
+        let gameLoop;
+        let isPaused = false;
+        let numPlayers = 1;
+
+        // Snake 1
+        let snake = {
+            x: 10,
+            y: 10,
+            dx: 0,
+            dy: 0,
+            cells: [],
+            maxCells: 4,
+            colorIndex: 0,
+            flashSpeed: 200
+        };
+
+        // Snake 2
+        let snake2 = {
+            x: 20,
+            y: 20,
+            dx: 0,
+            dy: 0,
+            cells: [],
+            maxCells: 4,
+            colorIndex: 1,
+            flashSpeed: 200
+        };
+
+        // Ghost pirate snake
+        let ghostSnake = {
+            active: false,
+            x: 15,
+            y: 15,
+            dx: 1,
+            dy: 0,
+            cells: [],
+            maxCells: 5,
+            timer: 0
+        };
+
+        // Coin
+        let coin = {
+            x: 15,
+            y: 15,
+            value: 5,
+            color: '#cd7f32'
+        };
+
+        const colors = [
+            '#FF6B6B', '#4ECDC4', '#45B7D1', '#FFA07A', '#98D8C8',
+            '#F7DC6F', '#BB8FCE', '#85C1E2', '#F8B500', '#FF1493'
+        ];
+
+        const coinTypes = [
+            { value: 5, color: '#cd7f32', name: '$5' },
+            { value: 25, color: '#c0c0c0', name: '$25' },
+            { value: 100, color: '#ffd700', name: '$100' }
+        ];
+
+        function startGame(players) {
+            numPlayers = players;
+            score = 0;
+            speed = 1;
+            snake = {
+                x: 10,
+                y: 10,
+                dx: 0,
+                dy: 0,
+                cells: [],
+                maxCells: 4,
+                colorIndex: 0,
+                flashSpeed: 200
+            };
+            snake2 = {
+                x: 20,
+                y: 20,
+                dx: 0,
+                dy: 0,
+                cells: [],
+                maxCells: 4,
+                colorIndex: 1,
+                flashSpeed: 200
+            };
+            updateScore();
+            placeCoin();
+            if (gameLoop) clearInterval(gameLoop);
+            gameLoop = setInterval(update, 100);
+            document.getElementById('gameOver').style.display = 'none';
+        }
+
+        function togglePause() {
+            isPaused = !isPaused;
+        }
+
+        function placeCoin() {
+            const coinType = coinTypes[Math.floor(Math.random() * coinTypes.length)];
+            coin.x = Math.floor(Math.random() * tileCount);
+            coin.y = Math.floor(Math.random() * tileCount);
+            coin.value = coinType.value;
+            coin.color = coinType.color;
+            coin.name = coinType.name;
+        }
+
+        function activateGhostSnake() {
+            if (Math.random() < 0.05 && !ghostSnake.active) {
+                ghostSnake.active = true;
+                ghostSnake.x = Math.floor(Math.random() * tileCount);
+                ghostSnake.y = Math.floor(Math.random() * tileCount);
+                ghostSnake.cells = [];
+                ghostSnake.timer = 0;
+                const directions = [
+                    {dx: 1, dy: 0}, {dx: -1, dy: 0},
+                    {dx: 0, dy: 1}, {dx: 0, dy: -1}
+                ];
+                const dir = directions[Math.floor(Math.random() * directions.length)];
+                ghostSnake.dx = dir.dx;
+                ghostSnake.dy = dir.dy;
+            }
+        }
+
+        function updateGhostSnake() {
+            if (!ghostSnake.active) return;
+
+            ghostSnake.timer++;
+            if (ghostSnake.timer > 100) {
+                ghostSnake.active = false;
+                return;
+            }
+
+            ghostSnake.x += ghostSnake.dx;
+            ghostSnake.y += ghostSnake.dy;
+
+            if (ghostSnake.x < 0) ghostSnake.x = tileCount - 1;
+            if (ghostSnake.x >= tileCount) ghostSnake.x = 0;
+            if (ghostSnake.y < 0) ghostSnake.y = tileCount - 1;
+            if (ghostSnake.y >= tileCount) ghostSnake.y = 0;
+
+            ghostSnake.cells.unshift({x: ghostSnake.x, y: ghostSnake.y});
+            if (ghostSnake.cells.length > ghostSnake.maxCells) {
+                ghostSnake.cells.pop();
+            }
+        }
+
+        function updateSnake(snakeObj) {
+            snakeObj.x += snakeObj.dx;
+            snakeObj.y += snakeObj.dy;
+
+            if (snakeObj.x < 0) snakeObj.x = tileCount - 1;
+            if (snakeObj.x >= tileCount) snakeObj.x = 0;
+            if (snakeObj.y < 0) snakeObj.y = tileCount - 1;
+            if (snakeObj.y >= tileCount) snakeObj.y = 0;
+
+            snakeObj.cells.unshift({x: snakeObj.x, y: snakeObj.y});
+            if (snakeObj.cells.length > snakeObj.maxCells) {
+                snakeObj.cells.pop();
+            }
+
+            // Check coin collision
+            if (snakeObj.x === coin.x && snakeObj.y === coin.y) {
+                snakeObj.maxCells += 2;
+                score += coin.value;
+                speed = Math.floor(score / 50) + 1;
+                snakeObj.colorIndex = (snakeObj.colorIndex + 1) % colors.length;
+                snakeObj.flashSpeed = Math.max(50, snakeObj.flashSpeed - 10);
+
+                if (score > highScore) {
+                    highScore = score;
+                    localStorage.setItem('pirateSnakeHighScore', highScore);
+                }
+
+                updateScore();
+                placeCoin();
+            }
+
+            // Check self collision
+            for (let i = 1; i < snakeObj.cells.length; i++) {
+                if (snakeObj.cells[i].x === snakeObj.x && snakeObj.cells[i].y === snakeObj.y) {
+                    gameOver();
+                }
+            }
+
+            // Check collision with other snake
+            if (numPlayers === 2) {
+                const otherSnake = snakeObj === snake ? snake2 : snake;
+                for (let cell of otherSnake.cells) {
+                    if (cell.x === snakeObj.x && cell.y === snakeObj.y) {
+                        gameOver();
+                    }
+                }
+            }
+
+            // Check collision with ghost snake
+            if (ghostSnake.active) {
+                for (let cell of ghostSnake.cells) {
+                    if (cell.x === snakeObj.x && cell.y === snakeObj.y) {
+                        gameOver();
+                    }
+                }
+            }
+        }
+
+        function update() {
+            if (isPaused) return;
+
+            activateGhostSnake();
+            updateGhostSnake();
+
+            if (snake.dx !== 0 || snake.dy !== 0) {
+                updateSnake(snake);
+            }
+
+            if (numPlayers === 2 && (snake2.dx !== 0 || snake2.dy !== 0)) {
+                updateSnake(snake2);
+            }
+
+            draw();
+        }
+
+        function drawSnake(snakeObj, isPirate = true) {
+            snakeObj.cells.forEach((cell, index) => {
+                const colorIndex = Math.floor(Date.now() / snakeObj.flashSpeed) % colors.length;
+                ctx.fillStyle = colors[(snakeObj.colorIndex + colorIndex) % colors.length];
+                ctx.fillRect(cell.x * gridSize, cell.y * gridSize, gridSize - 2, gridSize - 2);
+
+                // Draw pirate hat on head
+                if (index === 0 && isPirate) {
+                    ctx.fillStyle = '#000';
+                    ctx.fillRect(cell.x * gridSize + 2, cell.y * gridSize - 3, gridSize - 4, 5);
+                    ctx.fillStyle = '#8B4513';
+                    ctx.fillRect(cell.x * gridSize + 8, cell.y * gridSize - 1, 4, 3);
+
+                    // Eye patch
+                    ctx.fillStyle = '#000';
+                    ctx.beginPath();
+                    ctx.arc(cell.x * gridSize + 12, cell.y * gridSize + 8, 3, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.strokeStyle = '#000';
+                    ctx.lineWidth = 1;
+                    ctx.beginPath();
+                    ctx.moveTo(cell.x * gridSize + 9, cell.y * gridSize + 8);
+                    ctx.lineTo(cell.x * gridSize + 15, cell.y * gridSize + 8);
+                    ctx.stroke();
+                }
+            });
+        }
+
+        function draw() {
+            ctx.fillStyle = '#0a1929';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            // Draw coin
+            ctx.fillStyle = coin.color;
+            ctx.beginPath();
+            ctx.arc(coin.x * gridSize + gridSize/2, coin.y * gridSize + gridSize/2, gridSize/2 - 2, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.fillStyle = '#000';
+            ctx.font = '10px Arial';
+            ctx.textAlign = 'center';
+            ctx.fillText(coin.name, coin.x * gridSize + gridSize/2, coin.y * gridSize + gridSize/2 + 3);
+
+            // Draw snakes
+            drawSnake(snake, true);
+            if (numPlayers === 2) {
+                drawSnake(snake2, true);
+            }
+
+            // Draw ghost snake
+            if (ghostSnake.active) {
+                ghostSnake.cells.forEach((cell, index) => {
+                    ctx.fillStyle = `rgba(128, 128, 128, ${0.5 + 0.5 * Math.sin(Date.now() / 200)})`;
+                    ctx.fillRect(cell.x * gridSize, cell.y * gridSize, gridSize - 2, gridSize - 2);
+
+                    if (index === 0) {
+                        ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
+                        ctx.font = '16px Arial';
+                        ctx.fillText('👻', cell.x * gridSize + 2, cell.y * gridSize + 15);
+                    }
+                });
+            }
+        }
+
+        function updateScore() {
+            document.getElementById('score').textContent = score;
+            document.getElementById('highScore').textContent = highScore;
+            document.getElementById('speed').textContent = speed;
+        }
+
+        function gameOver() {
+            clearInterval(gameLoop);
+            document.getElementById('finalScore').textContent = score;
+            document.getElementById('gameOver').style.display = 'block';
+        }
+
+        document.addEventListener('keydown', (e) => {
+            // Player 1 controls (Arrow keys)
+            if (e.key === 'ArrowLeft' && snake.dx === 0) {
+                snake.dx = -1;
+                snake.dy = 0;
+            } else if (e.key === 'ArrowRight' && snake.dx === 0) {
+                snake.dx = 1;
+                snake.dy = 0;
+            } else if (e.key === 'ArrowUp' && snake.dy === 0) {
+                snake.dx = 0;
+                snake.dy = -1;
+            } else if (e.key === 'ArrowDown' && snake.dy === 0) {
+                snake.dx = 0;
+                snake.dy = 1;
+            }
+
+            // Player 2 controls (WASD)
+            if (numPlayers === 2) {
+                if (e.key === 'a' && snake2.dx === 0) {
+                    snake2.dx = -1;
+                    snake2.dy = 0;
+                } else if (e.key === 'd' && snake2.dx === 0) {
+                    snake2.dx = 1;
+                    snake2.dy = 0;
+                } else if (e.key === 'w' && snake2.dy === 0) {
+                    snake2.dx = 0;
+                    snake2.dy = -1;
+                } else if (e.key === 's' && snake2.dy === 0) {
+                    snake2.dx = 0;
+                    snake2.dy = 1;
+                }
+            }
+
+            e.preventDefault();
+        });
+
+        updateScore();
+    </script>
+</body>
+</html>
+```
