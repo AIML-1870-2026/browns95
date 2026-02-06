@@ -374,18 +374,18 @@
         };
 
         const colorSchemes = {
-            'taylor-swift': { low: [20, 50, 20], high: [100, 200, 100] },
-            'fearless': { low: [100, 100, 20], high: [255, 255, 150] },
-            'speak-now': { low: [80, 40, 120], high: [180, 120, 220] },
-            'red': { low: [100, 20, 20], high: [255, 80, 80] },
-            '1989': { low: [20, 80, 150], high: [120, 180, 255] },
-            'reputation': { low: [10, 10, 10], high: [80, 80, 80] },
-            'lover': { low: [200, 100, 150], high: [255, 180, 220] },
-            'folklore': { low: [150, 150, 150], high: [220, 220, 220] },
-            'evermore': { low: [80, 50, 30], high: [160, 110, 70] },
-            'midnights': { low: [20, 30, 80], high: [80, 100, 180] },
-            'ttpd': { low: [40, 40, 40], high: [100, 100, 100] },
-            'showgirl': { low: [150, 80, 20], high: [255, 160, 80] }
+            'taylor-swift': { low: [10, 60, 10], high: [150, 255, 150] },
+            'fearless': { low: [120, 100, 10], high: [255, 255, 180] },
+            'speak-now': { low: [60, 20, 100], high: [200, 150, 255] },
+            'red': { low: [120, 10, 10], high: [255, 100, 100] },
+            '1989': { low: [10, 80, 160], high: [150, 220, 255] },
+            'reputation': { low: [5, 5, 5], high: [100, 100, 100] },
+            'lover': { low: [180, 60, 130], high: [255, 200, 240] },
+            'folklore': { low: [100, 100, 100], high: [240, 240, 240] },
+            'evermore': { low: [60, 35, 20], high: [180, 130, 90] },
+            'midnights': { low: [15, 25, 70], high: [100, 140, 220] },
+            'ttpd': { low: [30, 30, 30], high: [120, 120, 120] },
+            'showgirl': { low: [140, 60, 10], high: [255, 180, 100] }
         };
 
         const presets = {
@@ -507,11 +507,15 @@
                 for (let x = 0; x < this.width; x++) {
                     for (let y = 0; y < this.height; y++) {
                         const i = (y * this.width + x) * 4;
-                        const value = this.grid[x][y].a - this.grid[x][y].b;
+                        const b_val = this.grid[x][y].b;
 
-                        const r = this.colorScheme.low[0] + value * (this.colorScheme.high[0] - this.colorScheme.low[0]);
-                        const g = this.colorScheme.low[1] + value * (this.colorScheme.high[1] - this.colorScheme.low[1]);
-                        const b = this.colorScheme.low[2] + value * (this.colorScheme.high[2] - this.colorScheme.low[2]);
+                        // Patterns (high b values) appear as darker versions of theme color
+                        // Background (low b values) appears as lighter theme color
+                        const darkness = 1 - b_val;
+
+                        const r = this.colorScheme.high[0] * darkness + this.colorScheme.low[0] * (1 - darkness);
+                        const g = this.colorScheme.high[1] * darkness + this.colorScheme.low[1] * (1 - darkness);
+                        const b = this.colorScheme.high[2] * darkness + this.colorScheme.low[2] * (1 - darkness);
 
                         data[i] = r;
                         data[i + 1] = g;
