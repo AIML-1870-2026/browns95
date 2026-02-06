@@ -1,0 +1,795 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Midnights Boids Demo</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Georgia', serif;
+            background: #0d1b2a;
+            overflow: hidden;
+            color: #c0c0c0;
+        }
+
+        body.lavender-haze {
+            background: linear-gradient(135deg, #e6d5f0 0%, #d4c5e8 50%, #c5b5dd 100%);
+        }
+
+        canvas {
+            display: block;
+            background: #0d1b2a;
+            border: 2px solid #4a2c5e;
+        }
+
+        body.lavender-haze canvas {
+            background: linear-gradient(135deg, #e6d5f0 0%, #d4c5e8 50%, #c5b5dd 100%);
+        }
+
+        .controls {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: rgba(13, 27, 42, 0.95);
+            padding: 20px;
+            border-radius: 10px;
+            border: 2px solid #4a2c5e;
+            min-width: 280px;
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+
+        body.lavender-haze .controls {
+            background: rgba(230, 213, 240, 0.95);
+            border-color: #b19cd9;
+            color: #5a3d7a;
+        }
+
+        h2 {
+            color: #c0c0c0;
+            font-size: 1.2rem;
+            margin-bottom: 15px;
+            text-align: center;
+            font-style: italic;
+        }
+
+        body.lavender-haze h2 {
+            color: #5a3d7a;
+        }
+
+        .control-group {
+            margin-bottom: 15px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-size: 0.9rem;
+            color: #c0c0c0;
+            position: relative;
+        }
+
+        body.lavender-haze label {
+            color: #5a3d7a;
+        }
+
+        .tooltip {
+            display: inline-block;
+            width: 14px;
+            height: 14px;
+            background: #4a2c5e;
+            color: #c0c0c0;
+            border-radius: 50%;
+            text-align: center;
+            font-size: 10px;
+            line-height: 14px;
+            margin-left: 5px;
+            cursor: help;
+        }
+
+        body.lavender-haze .tooltip {
+            background: #b19cd9;
+            color: #5a3d7a;
+        }
+
+        input[type="range"] {
+            width: 100%;
+            cursor: pointer;
+        }
+
+        .value-display {
+            float: right;
+            color: #8e7ab5;
+            font-weight: bold;
+        }
+
+        body.lavender-haze .value-display {
+            color: #7a5d9f;
+        }
+
+        button {
+            width: 100%;
+            padding: 10px;
+            margin: 5px 0;
+            background: #4a2c5e;
+            color: #c0c0c0;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            transition: background 0.3s;
+        }
+
+        body.lavender-haze button {
+            background: #b19cd9;
+            color: #5a3d7a;
+        }
+
+        button:hover {
+            background: #5e3675;
+        }
+
+        body.lavender-haze button:hover {
+            background: #9f87c9;
+        }
+
+        .preset-btn {
+            background: #2d1b3d;
+        }
+
+        body.lavender-haze .preset-btn {
+            background: #d4c5e8;
+        }
+
+        .stats {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            background: rgba(13, 27, 42, 0.95);
+            padding: 15px;
+            border-radius: 10px;
+            border: 2px solid #4a2c5e;
+            min-width: 200px;
+        }
+
+        body.lavender-haze .stats {
+            background: rgba(230, 213, 240, 0.95);
+            border-color: #b19cd9;
+            color: #5a3d7a;
+        }
+
+        .stat-item {
+            margin: 8px 0;
+            font-size: 0.9rem;
+        }
+
+        .stat-value {
+            float: right;
+            color: #8e7ab5;
+            font-weight: bold;
+        }
+
+        body.lavender-haze .stat-value {
+            color: #7a5d9f;
+        }
+
+        .chart-container {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            background: rgba(13, 27, 42, 0.95);
+            padding: 15px;
+            border-radius: 10px;
+            border: 2px solid #4a2c5e;
+        }
+
+        body.lavender-haze .chart-container {
+            background: rgba(230, 213, 240, 0.95);
+            border-color: #b19cd9;
+        }
+
+        #speedChart {
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 5px;
+        }
+
+        body.lavender-haze #speedChart {
+            background: rgba(255, 255, 255, 0.3);
+        }
+
+        .boundary-toggle {
+            display: flex;
+            gap: 10px;
+        }
+
+        .boundary-toggle button {
+            flex: 1;
+        }
+
+        .boundary-toggle button.active {
+            background: #8e7ab5;
+        }
+
+        body.lavender-haze .boundary-toggle button.active {
+            background: #7a5d9f;
+            color: #fff;
+        }
+
+        .lavender-toggle {
+            background: #5a3d7a !important;
+            margin-top: 10px;
+        }
+
+        body.lavender-haze .lavender-toggle {
+            background: #7a5d9f !important;
+            color: #fff;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="boidCanvas"></canvas>
+
+    <div class="stats">
+        <h2>Midnights Stats</h2>
+        <div class="stat-item">
+            FPS: <span class="stat-value" id="fps">60</span>
+        </div>
+        <div class="stat-item">
+            Boid Count: <span class="stat-value" id="boidCount">100</span>
+        </div>
+        <div class="stat-item">
+            Avg Speed: <span class="stat-value" id="avgSpeed">0.0</span>
+        </div>
+        <div class="stat-item">
+            Avg Neighbors: <span class="stat-value" id="avgNeighbors">0.0</span>
+        </div>
+    </div>
+
+    <div class="chart-container">
+        <h2>Speed Variance</h2>
+        <canvas id="speedChart" width="250" height="100"></canvas>
+    </div>
+
+    <div class="controls">
+        <h2>🌙 Midnights Boids 🌙</h2>
+
+        <button class="lavender-toggle" onclick="toggleLavenderHaze()">💜 Lavender Haze Mode 💜</button>
+
+        <h3 style="margin-top: 20px; margin-bottom: 10px; font-size: 1rem;">Presets</h3>
+        <button class="preset-btn" onclick="applyPreset('schooling')">Schooling</button>
+        <button class="preset-btn" onclick="applyPreset('chaotic')">Chaotic Swarm</button>
+        <button class="preset-btn" onclick="applyPreset('tight')">Tight Cluster</button>
+
+        <h3 style="margin-top: 20px; margin-bottom: 10px; font-size: 1rem;">Controls</h3>
+        <button onclick="togglePause()">⏯ Pause/Resume</button>
+        <button onclick="resetSimulation()">🔄 Reset</button>
+
+        <h3 style="margin-top: 20px; margin-bottom: 10px; font-size: 1rem;">Boundary</h3>
+        <div class="boundary-toggle">
+            <button id="wrapBtn" class="active" onclick="setBoundary('wrap')">Wrap</button>
+            <button id="bounceBtn" onclick="setBoundary('bounce')">Bounce</button>
+        </div>
+
+        <h3 style="margin-top: 20px; margin-bottom: 10px; font-size: 1rem;">Parameters</h3>
+
+        <div class="control-group">
+            <label>
+                Separation Weight <span class="tooltip" title="How much boids avoid each other">?</span>
+                <span class="value-display" id="sepValue">1.5</span>
+            </label>
+            <input type="range" id="separation" min="0" max="3" step="0.1" value="1.5">
+        </div>
+
+        <div class="control-group">
+            <label>
+                Alignment Weight <span class="tooltip" title="How much boids align with neighbors">?</span>
+                <span class="value-display" id="alignValue">1.0</span>
+            </label>
+            <input type="range" id="alignment" min="0" max="3" step="0.1" value="1.0">
+        </div>
+
+        <div class="control-group">
+            <label>
+                Cohesion Weight <span class="tooltip" title="How much boids stick together">?</span>
+                <span class="value-display" id="cohValue">1.0</span>
+            </label>
+            <input type="range" id="cohesion" min="0" max="3" step="0.1" value="1.0">
+        </div>
+
+        <div class="control-group">
+            <label>
+                Neighbor Radius <span class="tooltip" title="Detection range for nearby boids">?</span>
+                <span class="value-display" id="radiusValue">50</span>
+            </label>
+            <input type="range" id="neighborRadius" min="20" max="150" step="5" value="50">
+        </div>
+
+        <div class="control-group">
+            <label>
+                Max Speed <span class="tooltip" title="Maximum velocity of boids">?</span>
+                <span class="value-display" id="speedValue">4</span>
+            </label>
+            <input type="range" id="maxSpeed" min="1" max="10" step="0.5" value="4">
+        </div>
+
+        <div class="control-group">
+            <label>
+                Boid Count <span class="tooltip" title="Number of boids in simulation">?</span>
+                <span class="value-display" id="countValue">100</span>
+            </label>
+            <input type="range" id="boidCountSlider" min="10" max="300" step="10" value="100">
+        </div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('boidCanvas');
+        const ctx = canvas.getContext('2d');
+        const chartCanvas = document.getElementById('speedChart');
+        const chartCtx = chartCanvas.getContext('2d');
+
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+
+        let isPaused = false;
+        let boundary = 'wrap';
+        let lavenderHaze = false;
+        let mouseX = -1000;
+        let mouseY = -1000;
+
+        // Parameters
+        let params = {
+            separation: 1.5,
+            alignment: 1.0,
+            cohesion: 1.0,
+            neighborRadius: 50,
+            maxSpeed: 4,
+            boidCount: 100
+        };
+
+        // Stats
+        let fps = 60;
+        let lastTime = performance.now();
+        let frameCount = 0;
+        let speedHistory = [];
+        const maxHistoryLength = 100;
+
+        // Midnights album image in center
+        const centerImage = {
+            x: canvas.width / 2,
+            y: canvas.height / 2,
+            radius: 80
+        };
+
+        class Boid {
+            constructor() {
+                this.position = {
+                    x: Math.random() * canvas.width,
+                    y: Math.random() * canvas.height
+                };
+                // Avoid spawning in center
+                while (this.distanceToCenter() < centerImage.radius + 50) {
+                    this.position.x = Math.random() * canvas.width;
+                    this.position.y = Math.random() * canvas.height;
+                }
+                this.velocity = {
+                    x: (Math.random() - 0.5) * 2,
+                    y: (Math.random() - 0.5) * 2
+                };
+                this.acceleration = { x: 0, y: 0 };
+                this.trail = [];
+                this.neighbors = 0;
+            }
+
+            distanceToCenter() {
+                const dx = this.position.x - centerImage.x;
+                const dy = this.position.y - centerImage.y;
+                return Math.sqrt(dx * dx + dy * dy);
+            }
+
+            update(boids) {
+                this.acceleration = { x: 0, y: 0 };
+
+                let separation = { x: 0, y: 0 };
+                let alignment = { x: 0, y: 0 };
+                let cohesion = { x: 0, y: 0 };
+                let neighborCount = 0;
+
+                for (let other of boids) {
+                    if (other === this) continue;
+
+                    const dx = this.position.x - other.position.x;
+                    const dy = this.position.y - other.position.y;
+                    const distance = Math.sqrt(dx * dx + dy * dy);
+
+                    if (distance < params.neighborRadius && distance > 0) {
+                        neighborCount++;
+
+                        // Separation
+                        separation.x += dx / distance;
+                        separation.y += dy / distance;
+
+                        // Alignment
+                        alignment.x += other.velocity.x;
+                        alignment.y += other.velocity.y;
+
+                        // Cohesion
+                        cohesion.x += other.position.x;
+                        cohesion.y += other.position.y;
+                    }
+                }
+
+                this.neighbors = neighborCount;
+
+                if (neighborCount > 0) {
+                    // Apply separation
+                    this.acceleration.x += separation.x * params.separation;
+                    this.acceleration.y += separation.y * params.separation;
+
+                    // Apply alignment
+                    alignment.x /= neighborCount;
+                    alignment.y /= neighborCount;
+                    this.acceleration.x += (alignment.x - this.velocity.x) * params.alignment;
+                    this.acceleration.y += (alignment.y - this.velocity.y) * params.alignment;
+
+                    // Apply cohesion
+                    cohesion.x /= neighborCount;
+                    cohesion.y /= neighborCount;
+                    this.acceleration.x += (cohesion.x - this.position.x) * params.cohesion * 0.01;
+                    this.acceleration.y += (cohesion.y - this.position.y) * params.cohesion * 0.01;
+                }
+
+                // Avoid center image
+                const distToCenter = this.distanceToCenter();
+                if (distToCenter < centerImage.radius + 100) {
+                    const dx = this.position.x - centerImage.x;
+                    const dy = this.position.y - centerImage.y;
+                    const force = (centerImage.radius + 100 - distToCenter) / 10;
+                    this.acceleration.x += (dx / distToCenter) * force;
+                    this.acceleration.y += (dy / distToCenter) * force;
+                }
+
+                // Avoid mouse
+                const mouseDx = this.position.x - mouseX;
+                const mouseDy = this.position.y - mouseY;
+                const mouseDist = Math.sqrt(mouseDx * mouseDx + mouseDy * mouseDy);
+                if (mouseDist < 100) {
+                    const force = (100 - mouseDist) / 10;
+                    this.acceleration.x += (mouseDx / mouseDist) * force;
+                    this.acceleration.y += (mouseDy / mouseDist) * force;
+                }
+
+                // Update velocity
+                this.velocity.x += this.acceleration.x;
+                this.velocity.y += this.acceleration.y;
+
+                // Limit speed
+                const speed = Math.sqrt(this.velocity.x ** 2 + this.velocity.y ** 2);
+                if (speed > params.maxSpeed) {
+                    this.velocity.x = (this.velocity.x / speed) * params.maxSpeed;
+                    this.velocity.y = (this.velocity.y / speed) * params.maxSpeed;
+                }
+
+                // Update position
+                this.position.x += this.velocity.x;
+                this.position.y += this.velocity.y;
+
+                // Boundary behavior
+                if (boundary === 'wrap') {
+                    if (this.position.x < 0) this.position.x = canvas.width;
+                    if (this.position.x > canvas.width) this.position.x = 0;
+                    if (this.position.y < 0) this.position.y = canvas.height;
+                    if (this.position.y > canvas.height) this.position.y = 0;
+                } else {
+                    if (this.position.x < 0 || this.position.x > canvas.width) this.velocity.x *= -1;
+                    if (this.position.y < 0 || this.position.y > canvas.height) this.velocity.y *= -1;
+                    this.position.x = Math.max(0, Math.min(canvas.width, this.position.x));
+                    this.position.y = Math.max(0, Math.min(canvas.height, this.position.y));
+                }
+
+                // Update trail
+                this.trail.push({ x: this.position.x, y: this.position.y });
+                if (this.trail.length > 10) this.trail.shift();
+            }
+
+            draw() {
+                // Draw glittery trail
+                for (let i = 0; i < this.trail.length; i++) {
+                    const alpha = i / this.trail.length;
+                    if (lavenderHaze) {
+                        ctx.fillStyle = `rgba(177, 156, 217, ${alpha * 0.5})`;
+                    } else {
+                        ctx.fillStyle = `rgba(192, 192, 192, ${alpha * 0.3})`;
+                    }
+                    ctx.beginPath();
+                    ctx.arc(this.trail[i].x, this.trail[i].y, 2, 0, Math.PI * 2);
+                    ctx.fill();
+
+                    // Glitter effect
+                    if (Math.random() < 0.3) {
+                        ctx.fillStyle = lavenderHaze ? 'rgba(230, 213, 240, 0.8)' : 'rgba(255, 255, 255, 0.8)';
+                        ctx.fillRect(this.trail[i].x, this.trail[i].y, 1, 1);
+                    }
+                }
+
+                // Draw boid
+                if (lavenderHaze) {
+                    // Lavender bud
+                    ctx.fillStyle = '#b19cd9';
+                    ctx.beginPath();
+                    ctx.ellipse(this.position.x, this.position.y, 4, 6, 0, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.fillStyle = '#9f87c9';
+                    ctx.beginPath();
+                    ctx.arc(this.position.x, this.position.y - 2, 2, 0, Math.PI * 2);
+                    ctx.fill();
+                } else {
+                    // Triangle boid
+                    const angle = Math.atan2(this.velocity.y, this.velocity.x);
+                    ctx.save();
+                    ctx.translate(this.position.x, this.position.y);
+                    ctx.rotate(angle);
+                    ctx.fillStyle = '#c0c0c0';
+                    ctx.beginPath();
+                    ctx.moveTo(8, 0);
+                    ctx.lineTo(-4, 4);
+                    ctx.lineTo(-4, -4);
+                    ctx.closePath();
+                    ctx.fill();
+                    ctx.restore();
+                }
+            }
+        }
+
+        let boids = [];
+
+        function initBoids() {
+            boids = [];
+            for (let i = 0; i < params.boidCount; i++) {
+                boids.push(new Boid());
+            }
+        }
+
+        function drawCenterImage() {
+            // Draw Midnights album cover simulation
+            const gradient = ctx.createRadialGradient(
+                centerImage.x, centerImage.y, 0,
+                centerImage.x, centerImage.y, centerImage.radius
+            );
+
+            if (lavenderHaze) {
+                gradient.addColorStop(0, '#e6d5f0');
+                gradient.addColorStop(0.5, '#d4c5e8');
+                gradient.addColorStop(1, '#b19cd9');
+
+                // Lavender haze effect
+                ctx.fillStyle = 'rgba(230, 213, 240, 0.1)';
+                for (let i = 0; i < 5; i++) {
+                    ctx.beginPath();
+                    ctx.arc(
+                        centerImage.x + Math.sin(Date.now() / 1000 + i) * 20,
+                        centerImage.y + Math.cos(Date.now() / 1000 + i) * 20,
+                        centerImage.radius + 40 + i * 10,
+                        0, Math.PI * 2
+                    );
+                    ctx.fill();
+                }
+            } else {
+                gradient.addColorStop(0, '#4a2c5e');
+                gradient.addColorStop(0.5, '#2d1b3d');
+                gradient.addColorStop(1, '#0d1b2a');
+            }
+
+            ctx.fillStyle = gradient;
+            ctx.beginPath();
+            ctx.arc(centerImage.x, centerImage.y, centerImage.radius, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Border
+            ctx.strokeStyle = lavenderHaze ? '#b19cd9' : '#c0c0c0';
+            ctx.lineWidth = 3;
+            ctx.stroke();
+
+            // Text
+            ctx.fillStyle = lavenderHaze ? '#5a3d7a' : '#c0c0c0';
+            ctx.font = 'italic 16px Georgia';
+            ctx.textAlign = 'center';
+            ctx.fillText('Midnights', centerImage.x, centerImage.y);
+        }
+
+        function updateStats() {
+            let totalSpeed = 0;
+            let totalNeighbors = 0;
+
+            for (let boid of boids) {
+                const speed = Math.sqrt(boid.velocity.x ** 2 + boid.velocity.y ** 2);
+                totalSpeed += speed;
+                totalNeighbors += boid.neighbors;
+            }
+
+            const avgSpeed = totalSpeed / boids.length;
+            const avgNeighbors = totalNeighbors / boids.length;
+
+            document.getElementById('fps').textContent = fps;
+            document.getElementById('boidCount').textContent = boids.length;
+            document.getElementById('avgSpeed').textContent = avgSpeed.toFixed(2);
+            document.getElementById('avgNeighbors').textContent = avgNeighbors.toFixed(1);
+
+            // Update speed history
+            speedHistory.push(avgSpeed);
+            if (speedHistory.length > maxHistoryLength) speedHistory.shift();
+
+            // Calculate variance
+            const mean = speedHistory.reduce((a, b) => a + b, 0) / speedHistory.length;
+            const variance = speedHistory.reduce((sum, val) => sum + Math.pow(val - mean, 2), 0) / speedHistory.length;
+
+            return variance;
+        }
+
+        function drawChart() {
+            chartCtx.fillStyle = lavenderHaze ? 'rgba(255, 255, 255, 0.3)' : 'rgba(0, 0, 0, 0.3)';
+            chartCtx.fillRect(0, 0, chartCanvas.width, chartCanvas.height);
+
+            if (speedHistory.length < 2) return;
+
+            const maxVal = Math.max(...speedHistory, 1);
+            const step = chartCanvas.width / maxHistoryLength;
+
+            chartCtx.strokeStyle = lavenderHaze ? '#7a5d9f' : '#8e7ab5';
+            chartCtx.lineWidth = 2;
+            chartCtx.beginPath();
+
+            for (let i = 0; i < speedHistory.length; i++) {
+                const x = i * step;
+                const y = chartCanvas.height - (speedHistory[i] / maxVal) * chartCanvas.height;
+                if (i === 0) chartCtx.moveTo(x, y);
+                else chartCtx.lineTo(x, y);
+            }
+
+            chartCtx.stroke();
+        }
+
+        function animate() {
+            if (!isPaused) {
+                ctx.fillStyle = lavenderHaze ? 'rgba(230, 213, 240, 0.2)' : 'rgba(13, 27, 42, 0.2)';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+                drawCenterImage();
+
+                for (let boid of boids) {
+                    boid.update(boids);
+                    boid.draw();
+                }
+
+                // FPS calculation
+                frameCount++;
+                const currentTime = performance.now();
+                if (currentTime - lastTime >= 1000) {
+                    fps = frameCount;
+                    frameCount = 0;
+                    lastTime = currentTime;
+                }
+
+                updateStats();
+                drawChart();
+            }
+
+            requestAnimationFrame(animate);
+        }
+
+        // Event listeners
+        document.getElementById('separation').addEventListener('input', (e) => {
+            params.separation = parseFloat(e.target.value);
+            document.getElementById('sepValue').textContent = params.separation;
+        });
+
+        document.getElementById('alignment').addEventListener('input', (e) => {
+            params.alignment = parseFloat(e.target.value);
+            document.getElementById('alignValue').textContent = params.alignment;
+        });
+
+        document.getElementById('cohesion').addEventListener('input', (e) => {
+            params.cohesion = parseFloat(e.target.value);
+            document.getElementById('cohValue').textContent = params.cohesion;
+        });
+
+        document.getElementById('neighborRadius').addEventListener('input', (e) => {
+            params.neighborRadius = parseFloat(e.target.value);
+            document.getElementById('radiusValue').textContent = params.neighborRadius;
+        });
+
+        document.getElementById('maxSpeed').addEventListener('input', (e) => {
+            params.maxSpeed = parseFloat(e.target.value);
+            document.getElementById('speedValue').textContent = params.maxSpeed;
+        });
+
+        document.getElementById('boidCountSlider').addEventListener('input', (e) => {
+            params.boidCount = parseInt(e.target.value);
+            document.getElementById('countValue').textContent = params.boidCount;
+            initBoids();
+        });
+
+        canvas.addEventListener('mousemove', (e) => {
+            mouseX = e.clientX;
+            mouseY = e.clientY;
+        });
+
+        canvas.addEventListener('mouseleave', () => {
+            mouseX = -1000;
+            mouseY = -1000;
+        });
+
+        function togglePause() {
+            isPaused = !isPaused;
+        }
+
+        function resetSimulation() {
+            initBoids();
+            speedHistory = [];
+        }
+
+        function setBoundary(type) {
+            boundary = type;
+            document.getElementById('wrapBtn').classList.toggle('active', type === 'wrap');
+            document.getElementById('bounceBtn').classList.toggle('active', type === 'bounce');
+        }
+
+        function applyPreset(preset) {
+            if (preset === 'schooling') {
+                params.separation = 1.5;
+                params.alignment = 2.0;
+                params.cohesion = 1.5;
+                params.neighborRadius = 60;
+                params.maxSpeed = 3;
+            } else if (preset === 'chaotic') {
+                params.separation = 0.5;
+                params.alignment = 0.3;
+                params.cohesion = 0.2;
+                params.neighborRadius = 30;
+                params.maxSpeed = 8;
+            } else if (preset === 'tight') {
+                params.separation = 0.8;
+                params.alignment = 1.5;
+                params.cohesion = 2.5;
+                params.neighborRadius = 80;
+                params.maxSpeed = 2;
+            }
+
+            // Update sliders
+            document.getElementById('separation').value = params.separation;
+            document.getElementById('alignment').value = params.alignment;
+            document.getElementById('cohesion').value = params.cohesion;
+            document.getElementById('neighborRadius').value = params.neighborRadius;
+            document.getElementById('maxSpeed').value = params.maxSpeed;
+
+            // Update displays
+            document.getElementById('sepValue').textContent = params.separation;
+            document.getElementById('alignValue').textContent = params.alignment;
+            document.getElementById('cohValue').textContent = params.cohesion;
+            document.getElementById('radiusValue').textContent = params.neighborRadius;
+            document.getElementById('speedValue').textContent = params.maxSpeed;
+        }
+
+        function toggleLavenderHaze() {
+            lavenderHaze = !lavenderHaze;
+            document.body.classList.toggle('lavender-haze');
+        }
+
+        window.addEventListener('resize', () => {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+            centerImage.x = canvas.width / 2;
+            centerImage.y = canvas.height / 2;
+        });
+
+        // Initialize
+        initBoids();
+        animate();
+    </script>
+</body>
+</html>
