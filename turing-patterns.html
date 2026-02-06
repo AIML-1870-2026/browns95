@@ -1,0 +1,805 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Turing Patterns Explorer - Taylor Swift Edition</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Georgia', serif;
+            background: #1a1a1a;
+            color: #fff;
+            overflow-x: hidden;
+        }
+
+        .header {
+            text-align: center;
+            padding: 20px;
+            background: linear-gradient(135deg, #2c1a4a 0%, #1a1a2e 100%);
+            border-bottom: 3px solid #4a2c5e;
+        }
+
+        h1 {
+            font-size: 2rem;
+            font-style: italic;
+            margin-bottom: 10px;
+        }
+
+        .mode-toggle {
+            margin-top: 10px;
+        }
+
+        .mode-toggle button {
+            padding: 10px 20px;
+            margin: 0 5px;
+            background: #4a2c5e;
+            color: #fff;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 1rem;
+        }
+
+        .mode-toggle button.active {
+            background: #8e7ab5;
+        }
+
+        .container {
+            display: flex;
+            gap: 20px;
+            padding: 20px;
+            position: relative;
+        }
+
+        .canvas-container {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .split-view {
+            display: flex;
+            gap: 10px;
+        }
+
+        .simulation-box {
+            flex: 1;
+            border: 3px solid #4a2c5e;
+            border-radius: 10px;
+            padding: 10px;
+            background: #0a0a0a;
+        }
+
+        .player-label {
+            text-align: center;
+            font-size: 1.2rem;
+            margin-bottom: 10px;
+            font-weight: bold;
+        }
+
+        .player1 { color: #ff6b9d; }
+        .player2 { color: #4ecdc4; }
+
+        canvas {
+            border: 2px solid #333;
+            border-radius: 5px;
+            display: block;
+            width: 100%;
+        }
+
+        .controls {
+            position: fixed;
+            top: 140px;
+            right: 20px;
+            background: rgba(26, 26, 46, 0.95);
+            padding: 20px;
+            border-radius: 10px;
+            border: 2px solid #4a2c5e;
+            width: 300px;
+            max-height: calc(100vh - 160px);
+            overflow-y: auto;
+        }
+
+        h3 {
+            margin: 15px 0 10px 0;
+            color: #8e7ab5;
+            font-size: 1rem;
+        }
+
+        .control-group {
+            margin-bottom: 15px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-size: 0.9rem;
+        }
+
+        input[type="range"] {
+            width: 100%;
+            cursor: pointer;
+        }
+
+        .value-display {
+            float: right;
+            color: #8e7ab5;
+            font-weight: bold;
+        }
+
+        button {
+            width: 100%;
+            padding: 10px;
+            margin: 5px 0;
+            background: #4a2c5e;
+            color: #fff;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 0.9rem;
+        }
+
+        button:hover {
+            background: #5e3675;
+        }
+
+        .preset-btn, .color-btn {
+            background: #2d1b3d;
+            padding: 8px;
+            font-size: 0.85rem;
+        }
+
+        .parameter-space {
+            position: fixed;
+            bottom: 20px;
+            left: 20px;
+            background: rgba(26, 26, 46, 0.95);
+            padding: 15px;
+            border-radius: 10px;
+            border: 2px solid #4a2c5e;
+        }
+
+        #paramSpace {
+            border: 1px solid #4a2c5e;
+            border-radius: 5px;
+        }
+
+        .competition-panel {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0, 0, 0, 0.95);
+            padding: 40px;
+            border-radius: 15px;
+            border: 3px solid #8e7ab5;
+            text-align: center;
+            display: none;
+            z-index: 1000;
+        }
+
+        .timer {
+            font-size: 3rem;
+            margin: 20px 0;
+            color: #8e7ab5;
+        }
+
+        .scores {
+            display: flex;
+            gap: 40px;
+            justify-content: center;
+            margin: 20px 0;
+        }
+
+        .score-item {
+            text-align: center;
+        }
+
+        .score-value {
+            font-size: 2rem;
+            font-weight: bold;
+            margin-top: 10px;
+        }
+
+        .winner-announcement {
+            font-size: 2.5rem;
+            margin: 20px 0;
+            color: #ffd700;
+            animation: pulse 1s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.7; }
+        }
+
+        .player-controls {
+            display: flex;
+            gap: 10px;
+            margin-top: 10px;
+        }
+
+        .player-controls button {
+            font-size: 0.8rem;
+            padding: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🎨 Turing Patterns Explorer - Taylor Swift Edition 🎨</h1>
+        <div class="mode-toggle">
+            <button class="active" onclick="setMode('single')">Single Mode</button>
+            <button onclick="setMode('competition')">Competition Mode</button>
+        </div>
+    </div>
+
+    <div class="container">
+        <div class="canvas-container">
+            <div id="singleView">
+                <canvas id="canvas1" width="600" height="600"></canvas>
+                <div style="display: flex; gap: 10px; margin-top: 10px;">
+                    <button onclick="pauseSimulation(1)">⏯ Pause</button>
+                    <button onclick="resetSimulation(1)">🔄 Reset</button>
+                    <button onclick="clearSimulation(1)">🗑 Clear</button>
+                    <button onclick="saveImage(1)">💾 Save Image</button>
+                </div>
+            </div>
+
+            <div id="splitView" style="display: none;">
+                <div class="split-view">
+                    <div class="simulation-box">
+                        <div class="player-label player1">Player 1</div>
+                        <canvas id="canvasP1" width="400" height="400"></canvas>
+                        <div class="player-controls">
+                            <button onclick="pauseSimulation(1)">⏯</button>
+                            <button onclick="resetSimulation(1)">🔄</button>
+                            <button onclick="clearSimulation(1)">🗑</button>
+                        </div>
+                    </div>
+
+                    <div class="simulation-box">
+                        <div class="player-label player2">Player 2</div>
+                        <canvas id="canvasP2" width="400" height="400"></canvas>
+                        <div class="player-controls">
+                            <button onclick="pauseSimulation(2)">⏯</button>
+                            <button onclick="resetSimulation(2)">🔄</button>
+                            <button onclick="clearSimulation(2)">🗑</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div style="text-align: center; margin-top: 20px;">
+                    <button onclick="startCompetition()" style="font-size: 1.2rem; padding: 15px;">🏆 Start Competition</button>
+                </div>
+
+                <div class="scores" style="margin-top: 20px;">
+                    <div class="score-item player1">
+                        <div>Player 1</div>
+                        <div>Speed: <span id="p1Speed">0</span></div>
+                        <div>Creativity: <span id="p1Creativity">0</span></div>
+                        <div>Cohesion: <span id="p1Cohesion">0</span></div>
+                        <div class="score-value">Total: <span id="p1Total">0</span></div>
+                    </div>
+                    <div class="score-item player2">
+                        <div>Player 2</div>
+                        <div>Speed: <span id="p2Speed">0</span></div>
+                        <div>Creativity: <span id="p2Creativity">0</span></div>
+                        <div>Cohesion: <span id="p2Cohesion">0</span></div>
+                        <div class="score-value">Total: <span id="p2Total">0</span></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="controls">
+        <h3>🎵 Album Color Schemes</h3>
+        <button class="color-btn" onclick="setColorScheme('taylor-swift')">Taylor Swift (Green)</button>
+        <button class="color-btn" onclick="setColorScheme('fearless')">Fearless (Yellow)</button>
+        <button class="color-btn" onclick="setColorScheme('speak-now')">Speak Now (Purple)</button>
+        <button class="color-btn" onclick="setColorScheme('red')">Red</button>
+        <button class="color-btn" onclick="setColorScheme('1989')">1989 (Blue)</button>
+        <button class="color-btn" onclick="setColorScheme('reputation')">Reputation (Black)</button>
+        <button class="color-btn" onclick="setColorScheme('lover')">Lover (Pink)</button>
+        <button class="color-btn" onclick="setColorScheme('folklore')">Folklore (Grey)</button>
+        <button class="color-btn" onclick="setColorScheme('evermore')">Evermore (Brown)</button>
+        <button class="color-btn" onclick="setColorScheme('midnights')">Midnights (Blue)</button>
+        <button class="color-btn" onclick="setColorScheme('ttpd')">TTPD (Dark Grey)</button>
+        <button class="color-btn" onclick="setColorScheme('showgirl')">Showgirl (Orange)</button>
+
+        <h3>🎨 Pattern Presets</h3>
+        <button class="preset-btn" onclick="applyPreset('waves')">Waves</button>
+        <button class="preset-btn" onclick="applyPreset('maze')">Maze</button>
+        <button class="preset-btn" onclick="applyPreset('constellation')">Constellation</button>
+        <button class="preset-btn" onclick="applyPreset('spirals')">Spirals</button>
+        <button class="preset-btn" onclick="applyPreset('zebra')">Zebra</button>
+        <button class="preset-btn" onclick="applyPreset('cheetah')">Cheetah</button>
+
+        <h3 id="controlsLabel">⚙️ Parameters</h3>
+
+        <div class="control-group">
+            <label>
+                Feed Rate <span class="value-display" id="feedValue">0.055</span>
+            </label>
+            <input type="range" id="feedRate" min="0.01" max="0.1" step="0.001" value="0.055">
+        </div>
+
+        <div class="control-group">
+            <label>
+                Kill Rate <span class="value-display" id="killValue">0.062</span>
+            </label>
+            <input type="range" id="killRate" min="0.045" max="0.07" step="0.001" value="0.062">
+        </div>
+
+        <div class="control-group">
+            <label>
+                Speed <span class="value-display" id="speedValue">1</span>
+            </label>
+            <input type="range" id="speed" min="1" max="10" step="1" value="1">
+        </div>
+    </div>
+
+    <div class="parameter-space">
+        <h3>Parameter Space</h3>
+        <canvas id="paramSpace" width="300" height="200"></canvas>
+    </div>
+
+    <div class="competition-panel" id="competitionPanel">
+        <h2>Competition in Progress!</h2>
+        <div class="timer" id="timer">60</div>
+        <div id="winnerText"></div>
+        <button onclick="closeCompetition()">Close</button>
+    </div>
+
+    <script>
+        let mode = 'single';
+        let currentPlayer = 1;
+
+        const simulations = {
+            1: null,
+            2: null
+        };
+
+        const colorSchemes = {
+            'taylor-swift': { low: [20, 50, 20], high: [100, 200, 100] },
+            'fearless': { low: [100, 100, 20], high: [255, 255, 150] },
+            'speak-now': { low: [80, 40, 120], high: [180, 120, 220] },
+            'red': { low: [100, 20, 20], high: [255, 80, 80] },
+            '1989': { low: [20, 80, 150], high: [120, 180, 255] },
+            'reputation': { low: [10, 10, 10], high: [80, 80, 80] },
+            'lover': { low: [200, 100, 150], high: [255, 180, 220] },
+            'folklore': { low: [150, 150, 150], high: [220, 220, 220] },
+            'evermore': { low: [80, 50, 30], high: [160, 110, 70] },
+            'midnights': { low: [20, 30, 80], high: [80, 100, 180] },
+            'ttpd': { low: [40, 40, 40], high: [100, 100, 100] },
+            'showgirl': { low: [150, 80, 20], high: [255, 160, 80] }
+        };
+
+        const presets = {
+            waves: { feed: 0.055, kill: 0.062 },
+            maze: { feed: 0.029, kill: 0.057 },
+            constellation: { feed: 0.046, kill: 0.065 },
+            spirals: { feed: 0.014, kill: 0.054 },
+            zebra: { feed: 0.035, kill: 0.060 },
+            cheetah: { feed: 0.039, kill: 0.058 }
+        };
+
+        class TuringSimulation {
+            constructor(canvasId, playerId) {
+                this.canvas = document.getElementById(canvasId);
+                this.ctx = this.canvas.getContext('2d');
+                this.width = this.canvas.width;
+                this.height = this.canvas.height;
+                this.playerId = playerId;
+
+                this.feed = 0.055;
+                this.kill = 0.062;
+                this.speed = 1;
+                this.paused = false;
+
+                this.grid = [];
+                this.next = [];
+
+                this.colorScheme = colorSchemes['midnights'];
+
+                this.init();
+            }
+
+            init() {
+                for (let x = 0; x < this.width; x++) {
+                    this.grid[x] = [];
+                    this.next[x] = [];
+                    for (let y = 0; y < this.height; y++) {
+                        this.grid[x][y] = { a: 1, b: 0 };
+                        this.next[x][y] = { a: 1, b: 0 };
+                    }
+                }
+
+                // Add initial perturbation
+                const cx = this.width / 2;
+                const cy = this.height / 2;
+                for (let i = 0; i < 20; i++) {
+                    const x = Math.floor(cx + Math.random() * 40 - 20);
+                    const y = Math.floor(cy + Math.random() * 40 - 20);
+                    if (x >= 0 && x < this.width && y >= 0 && y < this.height) {
+                        this.grid[x][y].b = 1;
+                    }
+                }
+            }
+
+            update() {
+                if (this.paused) return;
+
+                for (let iter = 0; iter < this.speed; iter++) {
+                    for (let x = 1; x < this.width - 1; x++) {
+                        for (let y = 1; y < this.height - 1; y++) {
+                            const a = this.grid[x][y].a;
+                            const b = this.grid[x][y].b;
+
+                            // Laplacian for diffusion
+                            const laplaceA =
+                                this.grid[x][y].a * -1 +
+                                this.grid[x - 1][y].a * 0.2 +
+                                this.grid[x + 1][y].a * 0.2 +
+                                this.grid[x][y - 1].a * 0.2 +
+                                this.grid[x][y + 1].a * 0.2 +
+                                this.grid[x - 1][y - 1].a * 0.05 +
+                                this.grid[x + 1][y - 1].a * 0.05 +
+                                this.grid[x - 1][y + 1].a * 0.05 +
+                                this.grid[x + 1][y + 1].a * 0.05;
+
+                            const laplaceB =
+                                this.grid[x][y].b * -1 +
+                                this.grid[x - 1][y].b * 0.2 +
+                                this.grid[x + 1][y].b * 0.2 +
+                                this.grid[x][y - 1].b * 0.2 +
+                                this.grid[x][y + 1].b * 0.2 +
+                                this.grid[x - 1][y - 1].b * 0.05 +
+                                this.grid[x + 1][y - 1].b * 0.05 +
+                                this.grid[x - 1][y + 1].b * 0.05 +
+                                this.grid[x + 1][y + 1].b * 0.05;
+
+                            const dA = 1.0;
+                            const dB = 0.5;
+
+                            this.next[x][y].a = a + (dA * laplaceA - a * b * b + this.feed * (1 - a));
+                            this.next[x][y].b = b + (dB * laplaceB + a * b * b - (this.kill + this.feed) * b);
+
+                            this.next[x][y].a = Math.max(0, Math.min(1, this.next[x][y].a));
+                            this.next[x][y].b = Math.max(0, Math.min(1, this.next[x][y].b));
+                        }
+                    }
+
+                    [this.grid, this.next] = [this.next, this.grid];
+                }
+            }
+
+            draw() {
+                const imageData = this.ctx.createImageData(this.width, this.height);
+                const data = imageData.data;
+
+                for (let x = 0; x < this.width; x++) {
+                    for (let y = 0; y < this.height; y++) {
+                        const i = (y * this.width + x) * 4;
+                        const value = this.grid[x][y].a - this.grid[x][y].b;
+
+                        const r = this.colorScheme.low[0] + value * (this.colorScheme.high[0] - this.colorScheme.low[0]);
+                        const g = this.colorScheme.low[1] + value * (this.colorScheme.high[1] - this.colorScheme.low[1]);
+                        const b = this.colorScheme.low[2] + value * (this.colorScheme.high[2] - this.colorScheme.low[2]);
+
+                        data[i] = r;
+                        data[i + 1] = g;
+                        data[i + 2] = b;
+                        data[i + 3] = 255;
+                    }
+                }
+
+                this.ctx.putImageData(imageData, 0, 0);
+            }
+
+            calculateMetrics() {
+                let totalChange = 0;
+                let variance = 0;
+                let patterns = 0;
+
+                for (let x = 1; x < this.width - 1; x++) {
+                    for (let y = 1; y < this.height - 1; y++) {
+                        const current = this.grid[x][y].b;
+                        const neighbors = [
+                            this.grid[x-1][y].b,
+                            this.grid[x+1][y].b,
+                            this.grid[x][y-1].b,
+                            this.grid[x][y+1].b
+                        ];
+
+                        const avg = neighbors.reduce((a, b) => a + b, 0) / 4;
+                        variance += Math.abs(current - avg);
+
+                        if (current > 0.5) patterns++;
+                    }
+                }
+
+                return {
+                    speed: Math.min(100, variance * 10),
+                    creativity: Math.min(100, (patterns / (this.width * this.height)) * 200),
+                    cohesion: Math.min(100, 100 - variance * 5)
+                };
+            }
+
+            reset() {
+                this.init();
+            }
+
+            clear() {
+                for (let x = 0; x < this.width; x++) {
+                    for (let y = 0; y < this.height; y++) {
+                        this.grid[x][y] = { a: 1, b: 0 };
+                    }
+                }
+            }
+        }
+
+        function setMode(newMode) {
+            mode = newMode;
+            document.querySelectorAll('.mode-toggle button').forEach(btn => btn.classList.remove('active'));
+            event.target.classList.add('active');
+
+            if (mode === 'single') {
+                document.getElementById('singleView').style.display = 'block';
+                document.getElementById('splitView').style.display = 'none';
+                document.getElementById('controlsLabel').textContent = '⚙️ Parameters';
+
+                if (!simulations[1]) {
+                    simulations[1] = new TuringSimulation('canvas1', 1);
+                }
+                currentPlayer = 1;
+            } else {
+                document.getElementById('singleView').style.display = 'none';
+                document.getElementById('splitView').style.display = 'block';
+                document.getElementById('controlsLabel').textContent = '⚙️ Player 1 Parameters';
+
+                if (!simulations[1]) simulations[1] = new TuringSimulation('canvasP1', 1);
+                if (!simulations[2]) simulations[2] = new TuringSimulation('canvasP2', 2);
+                currentPlayer = 1;
+            }
+        }
+
+        function setColorScheme(scheme) {
+            const colors = colorSchemes[scheme];
+            if (mode === 'single') {
+                simulations[1].colorScheme = colors;
+            } else {
+                simulations[currentPlayer].colorScheme = colors;
+            }
+        }
+
+        function applyPreset(preset) {
+            const params = presets[preset];
+            if (mode === 'single') {
+                simulations[1].feed = params.feed;
+                simulations[1].kill = params.kill;
+            } else {
+                simulations[currentPlayer].feed = params.feed;
+                simulations[currentPlayer].kill = params.kill;
+            }
+
+            document.getElementById('feedRate').value = params.feed;
+            document.getElementById('killRate').value = params.kill;
+            document.getElementById('feedValue').textContent = params.feed.toFixed(3);
+            document.getElementById('killValue').textContent = params.kill.toFixed(3);
+        }
+
+        function pauseSimulation(player) {
+            if (simulations[player]) {
+                simulations[player].paused = !simulations[player].paused;
+            }
+        }
+
+        function resetSimulation(player) {
+            if (simulations[player]) {
+                simulations[player].reset();
+            }
+        }
+
+        function clearSimulation(player) {
+            if (simulations[player]) {
+                simulations[player].clear();
+            }
+        }
+
+        function saveImage(player) {
+            const canvas = mode === 'single' ?
+                document.getElementById('canvas1') :
+                document.getElementById(`canvasP${player}`);
+
+            const link = document.createElement('a');
+            link.download = `turing-pattern-${Date.now()}.png`;
+            link.href = canvas.toDataURL();
+            link.click();
+        }
+
+        let competitionTimer = null;
+        let competitionTime = 60;
+
+        function startCompetition() {
+            document.getElementById('competitionPanel').style.display = 'block';
+            competitionTime = 60;
+            document.getElementById('winnerText').innerHTML = '';
+
+            resetSimulation(1);
+            resetSimulation(2);
+
+            competitionTimer = setInterval(() => {
+                competitionTime--;
+                document.getElementById('timer').textContent = competitionTime;
+
+                updateScores();
+
+                if (competitionTime <= 0) {
+                    endCompetition();
+                }
+            }, 1000);
+        }
+
+        function updateScores() {
+            const metrics1 = simulations[1].calculateMetrics();
+            const metrics2 = simulations[2].calculateMetrics();
+
+            document.getElementById('p1Speed').textContent = Math.round(metrics1.speed);
+            document.getElementById('p1Creativity').textContent = Math.round(metrics1.creativity);
+            document.getElementById('p1Cohesion').textContent = Math.round(metrics1.cohesion);
+            const total1 = Math.round(metrics1.speed + metrics1.creativity + metrics1.cohesion);
+            document.getElementById('p1Total').textContent = total1;
+
+            document.getElementById('p2Speed').textContent = Math.round(metrics2.speed);
+            document.getElementById('p2Creativity').textContent = Math.round(metrics2.creativity);
+            document.getElementById('p2Cohesion').textContent = Math.round(metrics2.cohesion);
+            const total2 = Math.round(metrics2.speed + metrics2.creativity + metrics2.cohesion);
+            document.getElementById('p2Total').textContent = total2;
+        }
+
+        function endCompetition() {
+            clearInterval(competitionTimer);
+
+            const total1 = parseInt(document.getElementById('p1Total').textContent);
+            const total2 = parseInt(document.getElementById('p2Total').textContent);
+
+            let winner = total1 > total2 ? 'Player 1' : (total2 > total1 ? 'Player 2' : 'Tie');
+            document.getElementById('winnerText').innerHTML = `<div class="winner-announcement">🏆 ${winner} Wins! 🏆</div>`;
+        }
+
+        function closeCompetition() {
+            document.getElementById('competitionPanel').style.display = 'none';
+            if (competitionTimer) clearInterval(competitionTimer);
+        }
+
+        function drawParameterSpace() {
+            const canvas = document.getElementById('paramSpace');
+            const ctx = canvas.getContext('2d');
+
+            ctx.fillStyle = '#1a1a2e';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            // Draw regions
+            const regions = [
+                { name: 'Waves', f: 0.055, k: 0.062, color: '#4ecdc4' },
+                { name: 'Maze', f: 0.029, k: 0.057, color: '#ff6b9d' },
+                { name: 'Spirals', f: 0.014, k: 0.054, color: '#ffd93d' },
+                { name: 'Zebra', f: 0.035, k: 0.060, color: '#95e1d3' },
+                { name: 'Cheetah', f: 0.039, k: 0.058, color: '#f38181' }
+            ];
+
+            regions.forEach(region => {
+                const x = ((region.f - 0.01) / (0.1 - 0.01)) * canvas.width;
+                const y = canvas.height - ((region.k - 0.045) / (0.07 - 0.045)) * canvas.height;
+
+                ctx.fillStyle = region.color;
+                ctx.beginPath();
+                ctx.arc(x, y, 8, 0, Math.PI * 2);
+                ctx.fill();
+
+                ctx.fillStyle = '#fff';
+                ctx.font = '10px Arial';
+                ctx.fillText(region.name, x + 12, y + 4);
+            });
+
+            // Draw axes
+            ctx.strokeStyle = '#4a2c5e';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.moveTo(0, canvas.height);
+            ctx.lineTo(canvas.width, canvas.height);
+            ctx.stroke();
+
+            ctx.beginPath();
+            ctx.moveTo(0, 0);
+            ctx.lineTo(0, canvas.height);
+            ctx.stroke();
+
+            ctx.fillStyle = '#8e7ab5';
+            ctx.font = '12px Arial';
+            ctx.fillText('Feed →', canvas.width - 50, canvas.height - 5);
+            ctx.save();
+            ctx.translate(10, 60);
+            ctx.rotate(-Math.PI / 2);
+            ctx.fillText('Kill →', 0, 0);
+            ctx.restore();
+        }
+
+        // Event listeners
+        document.getElementById('feedRate').addEventListener('input', (e) => {
+            const value = parseFloat(e.target.value);
+            document.getElementById('feedValue').textContent = value.toFixed(3);
+            if (mode === 'single') {
+                simulations[1].feed = value;
+            } else {
+                simulations[currentPlayer].feed = value;
+            }
+        });
+
+        document.getElementById('killRate').addEventListener('input', (e) => {
+            const value = parseFloat(e.target.value);
+            document.getElementById('killValue').textContent = value.toFixed(3);
+            if (mode === 'single') {
+                simulations[1].kill = value;
+            } else {
+                simulations[currentPlayer].kill = value;
+            }
+        });
+
+        document.getElementById('speed').addEventListener('input', (e) => {
+            const value = parseInt(e.target.value);
+            document.getElementById('speedValue').textContent = value;
+            if (mode === 'single') {
+                simulations[1].speed = value;
+            } else {
+                simulations[currentPlayer].speed = value;
+            }
+        });
+
+        // Click canvases to switch control in competition mode
+        document.getElementById('canvasP1')?.addEventListener('click', () => {
+            if (mode === 'competition') {
+                currentPlayer = 1;
+                document.getElementById('controlsLabel').textContent = '⚙️ Player 1 Parameters';
+            }
+        });
+
+        document.getElementById('canvasP2')?.addEventListener('click', () => {
+            if (mode === 'competition') {
+                currentPlayer = 2;
+                document.getElementById('controlsLabel').textContent = '⚙️ Player 2 Parameters';
+            }
+        });
+
+        // Initialize
+        simulations[1] = new TuringSimulation('canvas1', 1);
+        drawParameterSpace();
+
+        // Animation loop
+        function animate() {
+            if (simulations[1]) {
+                simulations[1].update();
+                simulations[1].draw();
+            }
+
+            if (mode === 'competition' && simulations[2]) {
+                simulations[2].update();
+                simulations[2].draw();
+            }
+
+            requestAnimationFrame(animate);
+        }
+
+        animate();
+    </script>
+</body>
+</html>
