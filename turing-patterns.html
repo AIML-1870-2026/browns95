@@ -51,10 +51,20 @@
         }
 
         .container {
+            padding: 20px;
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        .bottom-section {
             display: flex;
             gap: 20px;
-            padding: 20px;
-            position: relative;
+            flex-wrap: wrap;
+        }
+
+        .bottom-section > div {
+            flex: 1;
+            min-width: 300px;
         }
 
         .canvas-container {
@@ -95,16 +105,11 @@
         }
 
         .controls {
-            position: fixed;
-            top: 140px;
-            right: 20px;
             background: rgba(26, 26, 46, 0.95);
             padding: 20px;
             border-radius: 10px;
             border: 2px solid #4a2c5e;
-            width: 300px;
-            max-height: calc(100vh - 160px);
-            overflow-y: auto;
+            margin: 20px;
         }
 
         h3 {
@@ -157,13 +162,11 @@
         }
 
         .parameter-space {
-            position: fixed;
-            bottom: 20px;
-            left: 20px;
             background: rgba(26, 26, 46, 0.95);
             padding: 15px;
             border-radius: 10px;
             border: 2px solid #4a2c5e;
+            margin: 20px;
         }
 
         #paramSpace {
@@ -298,10 +301,10 @@
                 </div>
             </div>
         </div>
-    </div>
 
-    <div class="controls">
-        <h3>🎵 Album Color Schemes</h3>
+        <div class="bottom-section">
+            <div class="controls">
+            <h3>🎵 Album Color Schemes</h3>
         <button class="color-btn" onclick="setColorScheme('taylor-swift')">Taylor Swift (Green)</button>
         <button class="color-btn" onclick="setColorScheme('fearless')">Fearless (Yellow)</button>
         <button class="color-btn" onclick="setColorScheme('speak-now')">Speak Now (Purple)</button>
@@ -345,11 +348,13 @@
             </label>
             <input type="range" id="speed" min="1" max="10" step="1" value="1">
         </div>
-    </div>
+            </div>
 
-    <div class="parameter-space">
-        <h3>Parameter Space</h3>
-        <canvas id="paramSpace" width="300" height="200"></canvas>
+            <div class="parameter-space">
+                <h3>Parameter Space</h3>
+                <canvas id="paramSpace" width="300" height="200"></canvas>
+            </div>
+        </div>
     </div>
 
     <div class="competition-panel" id="competitionPanel">
