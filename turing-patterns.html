@@ -303,7 +303,7 @@
         </div>
 
         <div class="bottom-section">
-            <div class="controls">
+            <div class="controls" id="singleControls">
             <h3>🎵 Album Color Schemes</h3>
         <button class="color-btn" onclick="setColorScheme('taylor-swift')">Taylor Swift (Green)</button>
         <button class="color-btn" onclick="setColorScheme('fearless')">Fearless (Yellow)</button>
@@ -350,6 +350,68 @@
         </div>
             </div>
 
+            <div class="controls" id="competitionControls" style="display: none;">
+                <h3>Player 1 Controls</h3>
+                <h4 style="font-size: 0.9rem; color: #ff6b9d;">🎵 Album Color Schemes</h4>
+                <button class="color-btn" onclick="setPlayerColor(1, 'taylor-swift')">Taylor Swift</button>
+                <button class="color-btn" onclick="setPlayerColor(1, 'fearless')">Fearless</button>
+                <button class="color-btn" onclick="setPlayerColor(1, 'speak-now')">Speak Now</button>
+                <button class="color-btn" onclick="setPlayerColor(1, 'red')">Red</button>
+                <button class="color-btn" onclick="setPlayerColor(1, '1989')">1989</button>
+                <button class="color-btn" onclick="setPlayerColor(1, 'reputation')">Reputation</button>
+                <button class="color-btn" onclick="setPlayerColor(1, 'lover')">Lover</button>
+                <button class="color-btn" onclick="setPlayerColor(1, 'folklore')">Folklore</button>
+                <button class="color-btn" onclick="setPlayerColor(1, 'evermore')">Evermore</button>
+                <button class="color-btn" onclick="setPlayerColor(1, 'midnights')">Midnights</button>
+                <button class="color-btn" onclick="setPlayerColor(1, 'ttpd')">TTPD</button>
+                <button class="color-btn" onclick="setPlayerColor(1, 'showgirl')">Showgirl</button>
+
+                <h4 style="font-size: 0.9rem; color: #ff6b9d; margin-top: 15px;">🎨 Pattern Presets</h4>
+                <button class="preset-btn" onclick="setPlayerPreset(1, 'waves')">Waves</button>
+                <button class="preset-btn" onclick="setPlayerPreset(1, 'maze')">Maze</button>
+                <button class="preset-btn" onclick="setPlayerPreset(1, 'constellation')">Constellation</button>
+                <button class="preset-btn" onclick="setPlayerPreset(1, 'spirals')">Spirals</button>
+                <button class="preset-btn" onclick="setPlayerPreset(1, 'zebra')">Zebra</button>
+                <button class="preset-btn" onclick="setPlayerPreset(1, 'cheetah')">Cheetah</button>
+
+                <h4 style="font-size: 0.9rem; color: #ff6b9d; margin-top: 15px;">⚙️ Parameters</h4>
+                <div class="control-group">
+                    <label>Speed <span class="value-display" id="p1SpeedDisplay">3</span></label>
+                    <input type="range" id="p1Speed" min="1" max="10" step="1" value="3">
+                </div>
+
+                <hr style="border-color: #4a2c5e; margin: 20px 0;">
+
+                <h3>Player 2 Controls</h3>
+                <h4 style="font-size: 0.9rem; color: #4ecdc4;">🎵 Album Color Schemes</h4>
+                <button class="color-btn" onclick="setPlayerColor(2, 'taylor-swift')">Taylor Swift</button>
+                <button class="color-btn" onclick="setPlayerColor(2, 'fearless')">Fearless</button>
+                <button class="color-btn" onclick="setPlayerColor(2, 'speak-now')">Speak Now</button>
+                <button class="color-btn" onclick="setPlayerColor(2, 'red')">Red</button>
+                <button class="color-btn" onclick="setPlayerColor(2, '1989')">1989</button>
+                <button class="color-btn" onclick="setPlayerColor(2, 'reputation')">Reputation</button>
+                <button class="color-btn" onclick="setPlayerColor(2, 'lover')">Lover</button>
+                <button class="color-btn" onclick="setPlayerColor(2, 'folklore')">Folklore</button>
+                <button class="color-btn" onclick="setPlayerColor(2, 'evermore')">Evermore</button>
+                <button class="color-btn" onclick="setPlayerColor(2, 'midnights')">Midnights</button>
+                <button class="color-btn" onclick="setPlayerColor(2, 'ttpd')">TTPD</button>
+                <button class="color-btn" onclick="setPlayerColor(2, 'showgirl')">Showgirl</button>
+
+                <h4 style="font-size: 0.9rem; color: #4ecdc4; margin-top: 15px;">🎨 Pattern Presets</h4>
+                <button class="preset-btn" onclick="setPlayerPreset(2, 'waves')">Waves</button>
+                <button class="preset-btn" onclick="setPlayerPreset(2, 'maze')">Maze</button>
+                <button class="preset-btn" onclick="setPlayerPreset(2, 'constellation')">Constellation</button>
+                <button class="preset-btn" onclick="setPlayerPreset(2, 'spirals')">Spirals</button>
+                <button class="preset-btn" onclick="setPlayerPreset(2, 'zebra')">Zebra</button>
+                <button class="preset-btn" onclick="setPlayerPreset(2, 'cheetah')">Cheetah</button>
+
+                <h4 style="font-size: 0.9rem; color: #4ecdc4; margin-top: 15px;">⚙️ Parameters</h4>
+                <div class="control-group">
+                    <label>Speed <span class="value-display" id="p2SpeedDisplay">3</span></label>
+                    <input type="range" id="p2Speed" min="1" max="10" step="1" value="3">
+                </div>
+            </div>
+
             <div class="parameter-space">
                 <h3>Parameter Space</h3>
                 <canvas id="paramSpace" width="300" height="200"></canvas>
@@ -389,12 +451,12 @@
         };
 
         const presets = {
-            waves: { feed: 0.055, kill: 0.062 },
-            maze: { feed: 0.029, kill: 0.057 },
-            constellation: { feed: 0.046, kill: 0.065 },
-            spirals: { feed: 0.014, kill: 0.054 },
-            zebra: { feed: 0.035, kill: 0.060 },
-            cheetah: { feed: 0.039, kill: 0.058 }
+            waves: { feed: 0.014, kill: 0.045 },      // Creates wave/stripe patterns
+            maze: { feed: 0.029, kill: 0.057 },       // Creates maze-like patterns
+            constellation: { feed: 0.046, kill: 0.063 }, // Creates dot/spot patterns
+            spirals: { feed: 0.018, kill: 0.051 },    // Creates spiral patterns
+            zebra: { feed: 0.016, kill: 0.049 },      // Creates zebra-like stripes
+            cheetah: { feed: 0.038, kill: 0.060 }     // Creates cheetah-like spots
         };
 
         class TuringSimulation {
@@ -577,7 +639,8 @@
             if (mode === 'single') {
                 document.getElementById('singleView').style.display = 'block';
                 document.getElementById('splitView').style.display = 'none';
-                document.getElementById('controlsLabel').textContent = '⚙️ Parameters';
+                document.getElementById('singleControls').style.display = 'block';
+                document.getElementById('competitionControls').style.display = 'none';
 
                 if (!simulations[1]) {
                     simulations[1] = new TuringSimulation('canvas1', 1);
@@ -586,11 +649,28 @@
             } else {
                 document.getElementById('singleView').style.display = 'none';
                 document.getElementById('splitView').style.display = 'block';
-                document.getElementById('controlsLabel').textContent = '⚙️ Player 1 Parameters';
+                document.getElementById('singleControls').style.display = 'none';
+                document.getElementById('competitionControls').style.display = 'block';
 
                 if (!simulations[1]) simulations[1] = new TuringSimulation('canvasP1', 1);
                 if (!simulations[2]) simulations[2] = new TuringSimulation('canvasP2', 2);
                 currentPlayer = 1;
+            }
+        }
+
+        function setPlayerColor(player, scheme) {
+            const colors = colorSchemes[scheme];
+            if (simulations[player]) {
+                simulations[player].colorScheme = colors;
+            }
+        }
+
+        function setPlayerPreset(player, preset) {
+            const params = presets[preset];
+            if (simulations[player]) {
+                simulations[player].feed = params.feed;
+                simulations[player].kill = params.kill;
+                simulations[player].reset();
             }
         }
 
@@ -789,19 +869,17 @@
             }
         });
 
-        // Click canvases to switch control in competition mode
-        document.getElementById('canvasP1')?.addEventListener('click', () => {
-            if (mode === 'competition') {
-                currentPlayer = 1;
-                document.getElementById('controlsLabel').textContent = '⚙️ Player 1 Parameters';
-            }
+        // Player-specific speed controls
+        document.getElementById('p1Speed')?.addEventListener('input', (e) => {
+            const value = parseInt(e.target.value);
+            document.getElementById('p1SpeedDisplay').textContent = value;
+            if (simulations[1]) simulations[1].speed = value;
         });
 
-        document.getElementById('canvasP2')?.addEventListener('click', () => {
-            if (mode === 'competition') {
-                currentPlayer = 2;
-                document.getElementById('controlsLabel').textContent = '⚙️ Player 2 Parameters';
-            }
+        document.getElementById('p2Speed')?.addEventListener('input', (e) => {
+            const value = parseInt(e.target.value);
+            document.getElementById('p2SpeedDisplay').textContent = value;
+            if (simulations[2]) simulations[2].speed = value;
         });
 
         // Initialize
