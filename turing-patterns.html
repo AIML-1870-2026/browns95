@@ -344,9 +344,9 @@
 
         <div class="control-group">
             <label>
-                Speed <span class="value-display" id="speedValue">1</span>
+                Speed <span class="value-display" id="speedValue">3</span>
             </label>
-            <input type="range" id="speed" min="1" max="10" step="1" value="1">
+            <input type="range" id="speed" min="1" max="10" step="1" value="3">
         </div>
             </div>
 
@@ -407,7 +407,7 @@
 
                 this.feed = 0.055;
                 this.kill = 0.062;
-                this.speed = 1;
+                this.speed = 3;
                 this.paused = false;
 
                 this.grid = [];
@@ -428,14 +428,27 @@
                     }
                 }
 
-                // Add initial perturbation
-                const cx = this.width / 2;
-                const cy = this.height / 2;
-                for (let i = 0; i < 20; i++) {
-                    const x = Math.floor(cx + Math.random() * 40 - 20);
-                    const y = Math.floor(cy + Math.random() * 40 - 20);
-                    if (x >= 0 && x < this.width && y >= 0 && y < this.height) {
-                        this.grid[x][y].b = 1;
+                this.addSeeds();
+            }
+
+            addSeeds() {
+                // Add multiple seed points across the canvas for better pattern formation
+                const numSeeds = 15;
+                for (let i = 0; i < numSeeds; i++) {
+                    const cx = Math.random() * this.width;
+                    const cy = Math.random() * this.height;
+                    const radius = 10 + Math.random() * 20;
+
+                    for (let x = cx - radius; x < cx + radius; x++) {
+                        for (let y = cy - radius; y < cy + radius; y++) {
+                            const dx = x - cx;
+                            const dy = y - cy;
+                            const dist = Math.sqrt(dx * dx + dy * dy);
+
+                            if (dist < radius && x >= 0 && x < this.width && y >= 0 && y < this.height) {
+                                this.grid[Math.floor(x)][Math.floor(y)].b = 1;
+                            }
+                        }
                     }
                 }
             }
@@ -591,9 +604,11 @@
             if (mode === 'single') {
                 simulations[1].feed = params.feed;
                 simulations[1].kill = params.kill;
+                simulations[1].reset();
             } else {
                 simulations[currentPlayer].feed = params.feed;
                 simulations[currentPlayer].kill = params.kill;
+                simulations[currentPlayer].reset();
             }
 
             document.getElementById('feedRate').value = params.feed;
