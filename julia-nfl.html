@@ -1,0 +1,548 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Julia Sets - NFL Version</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Arial', sans-serif;
+            background: #000;
+            color: #fff;
+            overflow-x: hidden;
+        }
+
+        .header {
+            text-align: center;
+            padding: 20px;
+            background: linear-gradient(135deg, #013369 0%, #D50A0A 100%);
+            border-bottom: 3px solid #FFB612;
+        }
+
+        h1 {
+            font-size: 2.5rem;
+            font-weight: bold;
+            text-shadow: 3px 3px 6px rgba(0, 0, 0, 0.8);
+        }
+
+        .container {
+            display: flex;
+            gap: 20px;
+            padding: 20px;
+        }
+
+        .canvas-section {
+            flex: 1;
+            position: relative;
+        }
+
+        canvas {
+            border: 3px solid #FFB612;
+            border-radius: 10px;
+            cursor: crosshair;
+            display: block;
+        }
+
+        .controls {
+            width: 300px;
+            background: rgba(20, 20, 20, 0.95);
+            padding: 20px;
+            border-radius: 10px;
+            border: 2px solid #FFB612;
+            max-height: calc(100vh - 200px);
+            overflow-y: auto;
+        }
+
+        h3 {
+            color: #FFB612;
+            margin: 15px 0 10px 0;
+            font-size: 1.1rem;
+        }
+
+        .control-group {
+            margin-bottom: 15px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-size: 0.9rem;
+            color: #ccc;
+        }
+
+        input[type="range"], input[type="number"] {
+            width: 100%;
+            cursor: pointer;
+        }
+
+        input[type="number"] {
+            background: #333;
+            color: #fff;
+            border: 1px solid #555;
+            padding: 5px;
+            border-radius: 3px;
+        }
+
+        .value-display {
+            float: right;
+            color: #FFB612;
+            font-weight: bold;
+        }
+
+        button {
+            width: 100%;
+            padding: 10px;
+            margin: 5px 0;
+            background: #013369;
+            color: #fff;
+            border: 1px solid #FFB612;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            transition: all 0.3s;
+        }
+
+        button:hover {
+            background: #D50A0A;
+        }
+
+        .preset-btn, .team-btn {
+            padding: 8px;
+            font-size: 0.85rem;
+        }
+
+        .educational-panel {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: rgba(20, 20, 20, 0.95);
+            border-top: 3px solid #FFB612;
+            padding: 15px;
+            display: none;
+        }
+
+        .educational-panel.active {
+            display: block;
+        }
+
+        .iteration-display {
+            display: flex;
+            gap: 20px;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .iteration-info {
+            color: #FFB612;
+            font-size: 1.2rem;
+        }
+
+        .football {
+            position: absolute;
+            font-size: 40px;
+            pointer-events: none;
+            z-index: 1000;
+            animation: fall linear;
+        }
+
+        @keyframes fall {
+            to {
+                transform: translateY(100vh) rotate(360deg);
+            }
+        }
+
+        .info-box {
+            background: rgba(1, 51, 105, 0.9);
+            padding: 10px;
+            border-radius: 5px;
+            margin-top: 10px;
+            font-size: 0.85rem;
+            border: 1px solid #FFB612;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🏈 JULIA SETS - NFL VERSION 🏈</h1>
+    </div>
+
+    <div class="container">
+        <div class="canvas-section">
+            <canvas id="juliaCanvas" width="800" height="800"></canvas>
+            <div class="info-box" id="infoBox">
+                Click on the canvas to explore different Julia sets!<br>
+                Inside Mandelbrot → Connected sets | Outside → Dust | Boundary → Intricate patterns
+            </div>
+        </div>
+
+        <div class="controls">
+            <h3>🏈 Julia Parameters (C = a + bi)</h3>
+            <div class="control-group">
+                <label>
+                    Real (a) <span class="value-display" id="realValue">-0.7</span>
+                </label>
+                <input type="number" id="realPart" step="0.01" value="-0.7" min="-2" max="2">
+            </div>
+
+            <div class="control-group">
+                <label>
+                    Imaginary (b) <span class="value-display" id="imagValue">0.27</span>
+                </label>
+                <input type="number" id="imagPart" step="0.01" value="0.27" min="-2" max="2">
+            </div>
+
+            <h3>🎨 Rendering Controls</h3>
+            <div class="control-group">
+                <label>
+                    Max Iterations <span class="value-display" id="maxIterValue">100</span>
+                </label>
+                <input type="range" id="maxIter" min="50" max="500" value="100">
+            </div>
+
+            <div class="control-group">
+                <label>
+                    Escape Radius <span class="value-display" id="escapeValue">2.0</span>
+                </label>
+                <input type="range" id="escapeRadius" min="2" max="10" step="0.1" value="2">
+            </div>
+
+            <h3>⚡ Presets</h3>
+            <button class="preset-btn" onclick="applyPreset('dendrite')">Dendrite</button>
+            <button class="preset-btn" onclick="applyPreset('spiral')">Spiral</button>
+            <button class="preset-btn" onclick="applyPreset('neurons')">Neurons</button>
+
+            <h3>🏈 NFL Team Colors</h3>
+            <button class="team-btn" onclick="setTeamColors('cardinals')">Cardinals</button>
+            <button class="team-btn" onclick="setTeamColors('falcons')">Falcons</button>
+            <button class="team-btn" onclick="setTeamColors('ravens')">Ravens</button>
+            <button class="team-btn" onclick="setTeamColors('bills')">Bills</button>
+            <button class="team-btn" onclick="setTeamColors('panthers')">Panthers</button>
+            <button class="team-btn" onclick="setTeamColors('bears')">Bears</button>
+            <button class="team-btn" onclick="setTeamColors('bengals')">Bengals</button>
+            <button class="team-btn" onclick="setTeamColors('browns')">Browns</button>
+            <button class="team-btn" onclick="setTeamColors('cowboys')">Cowboys</button>
+            <button class="team-btn" onclick="setTeamColors('broncos')">Broncos</button>
+            <button class="team-btn" onclick="setTeamColors('lions')">Lions</button>
+            <button class="team-btn" onclick="setTeamColors('packers')">Packers</button>
+            <button class="team-btn" onclick="setTeamColors('texans')">Texans</button>
+            <button class="team-btn" onclick="setTeamColors('colts')">Colts</button>
+            <button class="team-btn" onclick="setTeamColors('jaguars')">Jaguars</button>
+            <button class="team-btn" onclick="setTeamColors('chiefs')">Chiefs</button>
+            <button class="team-btn" onclick="setTeamColors('raiders')">Raiders</button>
+            <button class="team-btn" onclick="setTeamColors('chargers')">Chargers</button>
+            <button class="team-btn" onclick="setTeamColors('rams')">Rams</button>
+            <button class="team-btn" onclick="setTeamColors('dolphins')">Dolphins</button>
+            <button class="team-btn" onclick="setTeamColors('vikings')">Vikings</button>
+            <button class="team-btn" onclick="setTeamColors('patriots')">Patriots</button>
+            <button class="team-btn" onclick="setTeamColors('saints')">Saints</button>
+            <button class="team-btn" onclick="setTeamColors('giants')">Giants</button>
+            <button class="team-btn" onclick="setTeamColors('jets')">Jets</button>
+            <button class="team-btn" onclick="setTeamColors('eagles')">Eagles</button>
+            <button class="team-btn" onclick="setTeamColors('steelers')">Steelers</button>
+            <button class="team-btn" onclick="setTeamColors('49ers')">49ers</button>
+            <button class="team-btn" onclick="setTeamColors('seahawks')">Seahawks</button>
+            <button class="team-btn" onclick="setTeamColors('buccaneers')">Buccaneers</button>
+            <button class="team-btn" onclick="setTeamColors('titans')">Titans</button>
+            <button class="team-btn" onclick="setTeamColors('commanders')">Commanders</button>
+
+            <h3>🔍 View Controls</h3>
+            <div class="control-group">
+                <label>
+                    Zoom <span class="value-display" id="zoomValue">1.0</span>
+                </label>
+                <input type="range" id="zoom" min="0.5" max="5" step="0.1" value="1">
+            </div>
+
+            <div class="control-group">
+                <label>Center X</label>
+                <input type="number" id="centerX" step="0.1" value="0">
+            </div>
+
+            <div class="control-group">
+                <label>Center Y</label>
+                <input type="number" id="centerY" step="0.1" value="0">
+            </div>
+
+            <button onclick="resetView()">Reset View</button>
+
+            <h3>📚 Educational Mode</h3>
+            <button onclick="toggleEducationalMode()">Toggle Iteration Visualizer</button>
+        </div>
+    </div>
+
+    <div class="educational-panel" id="educationalPanel">
+        <div class="iteration-display">
+            <div class="iteration-info">
+                <strong>Educational Mode Active</strong><br>
+                Click on the Julia set to see iteration paths!
+            </div>
+            <div id="iterationPath"></div>
+        </div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('juliaCanvas');
+        const ctx = canvas.getContext('2d');
+
+        let juliaC = { re: -0.7, im: 0.27 };
+        let maxIterations = 100;
+        let escapeRadius = 2.0;
+        let zoom = 1.0;
+        let centerX = 0;
+        let centerY = 0;
+        let educationalMode = false;
+
+        const nflTeamColors = {
+            cardinals: [[151, 35, 63], [0, 0, 0]],
+            falcons: [[167, 25, 48], [0, 0, 0]],
+            ravens: [[26, 25, 95], [158, 124, 12]],
+            bills: [[0, 51, 141], [198, 12, 48]],
+            panthers: [[0, 133, 202], [16, 24, 32]],
+            bears: [[11, 22, 42], [200, 56, 3]],
+            bengals: [[251, 79, 20], [0, 0, 0]],
+            browns: [[49, 29, 0], [255, 60, 0]],
+            cowboys: [[0, 34, 68], [134, 147, 151]],
+            broncos: [[251, 79, 20], [0, 34, 68]],
+            lions: [[0, 118, 182], [176, 183, 188]],
+            packers: [[24, 48, 40], [255, 184, 28]],
+            texans: [[3, 32, 47], [167, 25, 48]],
+            colts: [[0, 44, 95], [162, 170, 173]],
+            jaguars: [[0, 103, 120], [215, 162, 42]],
+            chiefs: [[227, 24, 55], [255, 184, 28]],
+            raiders: [[0, 0, 0], [165, 172, 175]],
+            chargers: [[0, 128, 198], [255, 194, 14]],
+            rams: [[0, 53, 148], [255, 163, 0]],
+            dolphins: [[0, 142, 151], [252, 76, 2]],
+            vikings: [[79, 38, 131], [255, 198, 47]],
+            patriots: [[0, 34, 68], [198, 12, 48]],
+            saints: [[211, 188, 141], [16, 24, 31]],
+            giants: [[1, 35, 82], [163, 13, 45]],
+            jets: [[18, 87, 64], [0, 0, 0]],
+            eagles: [[0, 76, 84], [165, 172, 175]],
+            steelers: [[255, 182, 18], [16, 24, 32]],
+            '49ers': [[170, 0, 0], [173, 153, 93]],
+            seahawks: [[0, 34, 68], [105, 190, 40]],
+            buccaneers: [[213, 10, 10], [52, 48, 43]],
+            titans: [[12, 35, 64], [75, 146, 219]],
+            commanders: [[90, 20, 20], [255, 182, 18]]
+        };
+
+        let currentColors = nflTeamColors.chiefs;
+
+        const presets = {
+            dendrite: { re: 0.0, im: 0.8 },
+            spiral: { re: -0.4, im: 0.6 },
+            neurons: { re: 0.285, im: 0.01 }
+        };
+
+        function julia(x, y) {
+            let zx = x;
+            let zy = y;
+            let iterations = 0;
+            const path = [];
+
+            while (iterations < maxIterations) {
+                const zx2 = zx * zx;
+                const zy2 = zy * zy;
+
+                if (zx2 + zy2 > escapeRadius * escapeRadius) {
+                    break;
+                }
+
+                if (educationalMode && path.length < 50) {
+                    path.push({ x: zx, y: zy });
+                }
+
+                const xtemp = zx2 - zy2 + juliaC.re;
+                zy = 2 * zx * zy + juliaC.im;
+                zx = xtemp;
+
+                iterations++;
+            }
+
+            return { iterations, path };
+        }
+
+        function render() {
+            const imageData = ctx.createImageData(canvas.width, canvas.height);
+            const data = imageData.data;
+
+            for (let px = 0; px < canvas.width; px++) {
+                for (let py = 0; py < canvas.height; py++) {
+                    const x = (px - canvas.width / 2) / (canvas.width / 4 * zoom) + centerX;
+                    const y = (py - canvas.height / 2) / (canvas.height / 4 * zoom) + centerY;
+
+                    const result = julia(x, y);
+                    const iterations = result.iterations;
+
+                    const i = (py * canvas.width + px) * 4;
+
+                    if (iterations === maxIterations) {
+                        data[i] = 0;
+                        data[i + 1] = 0;
+                        data[i + 2] = 0;
+                    } else {
+                        const t = iterations / maxIterations;
+                        const color1 = currentColors[0];
+                        const color2 = currentColors[1];
+
+                        data[i] = color1[0] * (1 - t) + color2[0] * t;
+                        data[i + 1] = color1[1] * (1 - t) + color2[1] * t;
+                        data[i + 2] = color1[2] * (1 - t) + color2[2] * t;
+                    }
+                    data[i + 3] = 255;
+                }
+            }
+
+            ctx.putImageData(imageData, 0, 0);
+        }
+
+        function applyPreset(preset) {
+            const params = presets[preset];
+            juliaC.re = params.re;
+            juliaC.im = params.im;
+
+            document.getElementById('realPart').value = params.re;
+            document.getElementById('imagPart').value = params.im;
+            document.getElementById('realValue').textContent = params.re;
+            document.getElementById('imagValue').textContent = params.im;
+
+            render();
+        }
+
+        function setTeamColors(team) {
+            currentColors = nflTeamColors[team];
+            render();
+        }
+
+        function resetView() {
+            zoom = 1.0;
+            centerX = 0;
+            centerY = 0;
+            document.getElementById('zoom').value = 1;
+            document.getElementById('centerX').value = 0;
+            document.getElementById('centerY').value = 0;
+            document.getElementById('zoomValue').textContent = '1.0';
+            render();
+        }
+
+        function toggleEducationalMode() {
+            educationalMode = !educationalMode;
+            document.getElementById('educationalPanel').classList.toggle('active');
+        }
+
+        // Event listeners
+        document.getElementById('realPart').addEventListener('input', (e) => {
+            juliaC.re = parseFloat(e.target.value);
+            document.getElementById('realValue').textContent = juliaC.re.toFixed(2);
+            render();
+        });
+
+        document.getElementById('imagPart').addEventListener('input', (e) => {
+            juliaC.im = parseFloat(e.target.value);
+            document.getElementById('imagValue').textContent = juliaC.im.toFixed(2);
+            render();
+        });
+
+        document.getElementById('maxIter').addEventListener('input', (e) => {
+            maxIterations = parseInt(e.target.value);
+            document.getElementById('maxIterValue').textContent = maxIterations;
+            render();
+        });
+
+        document.getElementById('escapeRadius').addEventListener('input', (e) => {
+            escapeRadius = parseFloat(e.target.value);
+            document.getElementById('escapeValue').textContent = escapeRadius.toFixed(1);
+            render();
+        });
+
+        document.getElementById('zoom').addEventListener('input', (e) => {
+            zoom = parseFloat(e.target.value);
+            document.getElementById('zoomValue').textContent = zoom.toFixed(1);
+            render();
+        });
+
+        document.getElementById('centerX').addEventListener('input', (e) => {
+            centerX = parseFloat(e.target.value);
+            render();
+        });
+
+        document.getElementById('centerY').addEventListener('input', (e) => {
+            centerY = parseFloat(e.target.value);
+            render();
+        });
+
+        canvas.addEventListener('click', (e) => {
+            const rect = canvas.getBoundingClientRect();
+            const px = e.clientX - rect.left;
+            const py = e.clientY - rect.top;
+
+            const x = (px - canvas.width / 2) / (canvas.width / 4 * zoom) + centerX;
+            const y = (py - canvas.height / 2) / (canvas.height / 4 * zoom) + centerY;
+
+            if (educationalMode) {
+                const result = julia(x, y);
+                const pathDiv = document.getElementById('iterationPath');
+                pathDiv.innerHTML = `
+                    <strong>Point (${x.toFixed(4)}, ${y.toFixed(4)})</strong><br>
+                    Iterations: ${result.iterations}<br>
+                    Path length: ${result.path.length}
+                `;
+
+                // Draw path on canvas
+                ctx.strokeStyle = '#FFB612';
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                result.path.forEach((point, i) => {
+                    const screenX = (point.x - centerX) * (canvas.width / 4 * zoom) + canvas.width / 2;
+                    const screenY = (point.y - centerY) * (canvas.height / 4 * zoom) + canvas.height / 2;
+                    if (i === 0) ctx.moveTo(screenX, screenY);
+                    else ctx.lineTo(screenX, screenY);
+                });
+                ctx.stroke();
+
+                setTimeout(() => render(), 2000);
+            } else {
+                juliaC.re = x;
+                juliaC.im = y;
+                document.getElementById('realPart').value = x.toFixed(4);
+                document.getElementById('imagPart').value = y.toFixed(4);
+                document.getElementById('realValue').textContent = x.toFixed(4);
+                document.getElementById('imagValue').textContent = y.toFixed(4);
+                render();
+            }
+        });
+
+        // Football animation every 30 seconds
+        function createFootball() {
+            const football = document.createElement('div');
+            football.className = 'football';
+            football.textContent = '🏈';
+            football.style.left = Math.random() * window.innerWidth + 'px';
+            football.style.top = '-50px';
+            football.style.animationDuration = (3 + Math.random() * 2) + 's';
+            document.body.appendChild(football);
+
+            setTimeout(() => football.remove(), 5000);
+        }
+
+        function footballRain() {
+            for (let i = 0; i < 15; i++) {
+                setTimeout(() => createFootball(), i * 200);
+            }
+        }
+
+        setInterval(footballRain, 30000);
+
+        // Initial render
+        render();
+    </script>
+</body>
+</html>
