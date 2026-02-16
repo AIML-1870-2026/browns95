@@ -1,0 +1,865 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Workout Decision Neuron</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+            color: #fff;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        h1 {
+            text-align: center;
+            margin-bottom: 30px;
+            font-size: 2.5rem;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+        }
+
+        .main-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+
+        .panel {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 15px;
+            padding: 20px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+        }
+
+        .panel h2 {
+            margin-bottom: 15px;
+            font-size: 1.5rem;
+            border-bottom: 2px solid rgba(255, 255, 255, 0.3);
+            padding-bottom: 10px;
+        }
+
+        #neuronCanvas, #boundaryCanvas {
+            width: 100%;
+            height: 400px;
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 10px;
+            display: block;
+        }
+
+        .input-group {
+            margin-bottom: 15px;
+        }
+
+        .input-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-size: 0.9rem;
+            color: #e0e0e0;
+        }
+
+        .slider-container {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        input[type="range"] {
+            flex: 1;
+            height: 8px;
+            border-radius: 5px;
+            background: rgba(255, 255, 255, 0.2);
+            outline: none;
+            -webkit-appearance: none;
+        }
+
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: #fff;
+            cursor: pointer;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+        }
+
+        input[type="range"]::-moz-range-thumb {
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: #fff;
+            cursor: pointer;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+            border: none;
+        }
+
+        .value-display {
+            min-width: 40px;
+            text-align: right;
+            font-weight: bold;
+            color: #fff;
+        }
+
+        .decision-output {
+            margin-top: 20px;
+            padding: 20px;
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 10px;
+            text-align: center;
+        }
+
+        .decision-output h3 {
+            margin-bottom: 10px;
+            font-size: 1.2rem;
+        }
+
+        .decision-result {
+            font-size: 2rem;
+            font-weight: bold;
+            padding: 15px;
+            border-radius: 10px;
+            margin-top: 10px;
+            animation: pulse 2s ease-in-out infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+        }
+
+        .training-controls {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+
+        button {
+            padding: 12px 20px;
+            border: none;
+            border-radius: 8px;
+            font-size: 1rem;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            background: rgba(255, 255, 255, 0.9);
+            color: #667eea;
+        }
+
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+            background: #fff;
+        }
+
+        button:active {
+            transform: translateY(0);
+        }
+
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 10px;
+            margin-top: 15px;
+        }
+
+        .stat-item {
+            background: rgba(0, 0, 0, 0.3);
+            padding: 10px;
+            border-radius: 8px;
+            text-align: center;
+        }
+
+        .stat-label {
+            font-size: 0.8rem;
+            color: #e0e0e0;
+            margin-bottom: 5px;
+        }
+
+        .stat-value {
+            font-size: 1.2rem;
+            font-weight: bold;
+        }
+
+        .activation-selector {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+
+        .activation-btn {
+            flex: 1;
+            padding: 10px;
+            background: rgba(255, 255, 255, 0.2);
+            border: 2px solid transparent;
+            color: #fff;
+        }
+
+        .activation-btn.active {
+            background: rgba(255, 255, 255, 0.3);
+            border-color: #fff;
+        }
+
+        .label-selector {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+
+        .label-btn {
+            padding: 10px;
+            background: rgba(255, 255, 255, 0.2);
+            border: 2px solid transparent;
+            color: #fff;
+        }
+
+        .label-btn.active {
+            border-color: #fff;
+        }
+
+        .label-btn.upper {
+            background: rgba(255, 100, 100, 0.3);
+        }
+
+        .label-btn.lower {
+            background: rgba(100, 150, 255, 0.3);
+        }
+
+        .instructions {
+            background: rgba(0, 0, 0, 0.3);
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 15px;
+            font-size: 0.9rem;
+        }
+
+        @media (max-width: 968px) {
+            .main-grid {
+                grid-template-columns: 1fr;
+            }
+
+            h1 {
+                font-size: 2rem;
+            }
+
+            #neuronCanvas, #boundaryCanvas {
+                height: 300px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🧠 Workout Decision Neuron</h1>
+
+        <div class="main-grid">
+            <!-- Left Panel: Neuron Visualization -->
+            <div class="panel">
+                <h2>Neural Network</h2>
+                <canvas id="neuronCanvas"></canvas>
+
+                <div class="input-group">
+                    <label>Exercises Done This Week: <span class="value-display" id="exercisesValue">3</span></label>
+                    <div class="slider-container">
+                        <input type="range" id="exercises" min="0" max="7" value="3" step="1">
+                    </div>
+                </div>
+
+                <div class="input-group">
+                    <label>Weather (0=Bad, 10=Perfect): <span class="value-display" id="weatherValue">5</span></label>
+                    <div class="slider-container">
+                        <input type="range" id="weather" min="0" max="10" value="5" step="1">
+                    </div>
+                </div>
+
+                <div class="input-group">
+                    <label>Soreness Level: <span class="value-display" id="sorenessValue">5</span></label>
+                    <div class="slider-container">
+                        <input type="range" id="soreness" min="0" max="10" value="5" step="1">
+                    </div>
+                </div>
+
+                <div class="input-group">
+                    <label>Time Available (minutes): <span class="value-display" id="timeValue">45</span></label>
+                    <div class="slider-container">
+                        <input type="range" id="time" min="15" max="120" value="45" step="5">
+                    </div>
+                </div>
+
+                <div class="decision-output">
+                    <h3>Recommended Workout:</h3>
+                    <div class="decision-result" id="decisionResult">LEGS & GLUTES</div>
+                    <div style="margin-top: 10px; font-size: 0.9rem;">
+                        Confidence: <span id="confidence">85%</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right Panel: Decision Boundary -->
+            <div class="panel">
+                <h2>Decision Boundary</h2>
+
+                <div class="activation-selector">
+                    <button class="activation-btn active" data-activation="sigmoid">Sigmoid</button>
+                    <button class="activation-btn" data-activation="step">Step</button>
+                    <button class="activation-btn" data-activation="relu">ReLU</button>
+                </div>
+
+                <canvas id="boundaryCanvas"></canvas>
+
+                <div class="stats">
+                    <div class="stat-item">
+                        <div class="stat-label">Weight (UB)</div>
+                        <div class="stat-value" id="weightUB">0.5</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-label">Weight (LB)</div>
+                        <div class="stat-value" id="weightLB">0.5</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-label">Bias</div>
+                        <div class="stat-value" id="biasValue">0.0</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-label">Accuracy</div>
+                        <div class="stat-value" id="accuracy">-</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Training Panel -->
+        <div class="panel">
+            <h2>Training Mode</h2>
+
+            <div class="instructions">
+                Click on the Decision Boundary canvas to add training points. Select whether the point should be classified as Upper Body or Lower Body workout.
+            </div>
+
+            <div class="label-selector">
+                <button class="label-btn upper active" data-label="upper">Upper Body (Arms/Abs)</button>
+                <button class="label-btn lower" data-label="lower">Lower Body (Legs/Glutes)</button>
+            </div>
+
+            <div class="training-controls">
+                <button id="stepBtn">Step (1 epoch)</button>
+                <button id="trainBtn">Train (100 epochs)</button>
+                <button id="resetBtn">Reset Network</button>
+                <button id="clearBtn">Clear Points</button>
+            </div>
+
+            <div class="stats">
+                <div class="stat-item">
+                    <div class="stat-label">Training Points</div>
+                    <div class="stat-value" id="pointCount">0</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-label">Epochs Trained</div>
+                    <div class="stat-value" id="epochCount">0</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-label">Learning Rate</div>
+                    <div class="stat-value">0.1</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-label">Loss</div>
+                    <div class="stat-value" id="lossValue">0.000</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Canvas setup
+        const neuronCanvas = document.getElementById('neuronCanvas');
+        const boundaryCanvas = document.getElementById('boundaryCanvas');
+        const neuronCtx = neuronCanvas.getContext('2d');
+        const boundaryCtx = boundaryCanvas.getContext('2d');
+
+        function resizeCanvas(canvas) {
+            const rect = canvas.getBoundingClientRect();
+            canvas.width = rect.width * window.devicePixelRatio;
+            canvas.height = rect.height * window.devicePixelRatio;
+            canvas.getContext('2d').scale(window.devicePixelRatio, window.devicePixelRatio);
+        }
+
+        resizeCanvas(neuronCanvas);
+        resizeCanvas(boundaryCanvas);
+
+        // Neural Network
+        class DecisionNeuron {
+            constructor() {
+                this.weights = [0.5, 0.5]; // [upper body weight, lower body weight]
+                this.bias = 0.0;
+                this.activationFunction = 'sigmoid';
+                this.learningRate = 0.1;
+                this.epochs = 0;
+            }
+
+            activate(x) {
+                const z = x;
+                switch(this.activationFunction) {
+                    case 'sigmoid':
+                        return 1 / (1 + Math.exp(-z));
+                    case 'step':
+                        return z >= 0 ? 1 : 0;
+                    case 'relu':
+                        return Math.max(0, z);
+                    default:
+                        return 1 / (1 + Math.exp(-z));
+                }
+            }
+
+            predict(upperBody, lowerBody) {
+                const z = upperBody * this.weights[0] + lowerBody * this.weights[1] + this.bias;
+                return this.activate(z);
+            }
+
+            train(trainingData, epochs = 1) {
+                for (let epoch = 0; epoch < epochs; epoch++) {
+                    let totalLoss = 0;
+
+                    for (let point of trainingData) {
+                        const prediction = this.predict(point.x, point.y);
+                        const error = point.label - prediction;
+
+                        // Gradient descent
+                        this.weights[0] += this.learningRate * error * point.x;
+                        this.weights[1] += this.learningRate * error * point.y;
+                        this.bias += this.learningRate * error;
+
+                        totalLoss += Math.abs(error);
+                    }
+
+                    this.epochs++;
+                }
+            }
+
+            reset() {
+                this.weights = [0.5, 0.5];
+                this.bias = 0.0;
+                this.epochs = 0;
+            }
+        }
+
+        const neuron = new DecisionNeuron();
+        let trainingPoints = [];
+        let currentLabel = 'upper'; // 'upper' or 'lower'
+        let isTraining = false;
+
+        // Input sliders
+        const inputs = {
+            exercises: document.getElementById('exercises'),
+            weather: document.getElementById('weather'),
+            soreness: document.getElementById('soreness'),
+            time: document.getElementById('time')
+        };
+
+        // Update input displays
+        Object.keys(inputs).forEach(key => {
+            const input = inputs[key];
+            const display = document.getElementById(key + 'Value');
+            input.addEventListener('input', () => {
+                display.textContent = input.value;
+                updateDecision();
+                drawNeuron();
+            });
+        });
+
+        // Activation function selector
+        document.querySelectorAll('.activation-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                document.querySelectorAll('.activation-btn').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                neuron.activationFunction = btn.dataset.activation;
+                updateDecision();
+                drawBoundary();
+            });
+        });
+
+        // Label selector
+        document.querySelectorAll('.label-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                document.querySelectorAll('.label-btn').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                currentLabel = btn.dataset.label;
+            });
+        });
+
+        // Training controls
+        document.getElementById('stepBtn').addEventListener('click', () => {
+            if (trainingPoints.length > 0) {
+                neuron.train(trainingPoints, 1);
+                updateStats();
+                drawBoundary();
+                updateDecision();
+            }
+        });
+
+        document.getElementById('trainBtn').addEventListener('click', async () => {
+            if (trainingPoints.length > 0 && !isTraining) {
+                isTraining = true;
+                document.getElementById('trainBtn').disabled = true;
+
+                for (let i = 0; i < 10; i++) {
+                    neuron.train(trainingPoints, 10);
+                    updateStats();
+                    drawBoundary();
+                    updateDecision();
+                    await new Promise(resolve => setTimeout(resolve, 50));
+                }
+
+                document.getElementById('trainBtn').disabled = false;
+                isTraining = false;
+            }
+        });
+
+        document.getElementById('resetBtn').addEventListener('click', () => {
+            neuron.reset();
+            updateStats();
+            drawBoundary();
+            updateDecision();
+        });
+
+        document.getElementById('clearBtn').addEventListener('click', () => {
+            trainingPoints = [];
+            updateStats();
+            drawBoundary();
+        });
+
+        // Add training points by clicking on boundary canvas
+        boundaryCanvas.addEventListener('click', (e) => {
+            const rect = boundaryCanvas.getBoundingClientRect();
+            const x = (e.clientX - rect.left) / rect.width;
+            const y = (e.clientY - rect.top) / rect.height;
+
+            trainingPoints.push({
+                x: x * 2 - 1, // Normalize to -1 to 1
+                y: (1 - y) * 2 - 1, // Flip Y and normalize
+                label: currentLabel === 'lower' ? 1 : 0,
+                color: currentLabel === 'lower' ? 'rgba(100, 150, 255, 0.8)' : 'rgba(255, 100, 100, 0.8)'
+            });
+
+            updateStats();
+            drawBoundary();
+        });
+
+        // Calculate decision based on inputs
+        function updateDecision() {
+            const exercises = parseInt(inputs.exercises.value);
+            const weather = parseInt(inputs.weather.value);
+            const soreness = parseInt(inputs.soreness.value);
+            const time = parseInt(inputs.time.value);
+
+            // Convert inputs to upper body vs lower body preference
+            // Upper body factors: high soreness in lower body, bad weather (indoor), less time
+            // Lower body factors: high soreness in upper body, good weather, more time
+
+            const upperBodyFactor = (soreness / 10) - (weather / 20) - (time / 120) + (exercises > 4 ? -0.2 : 0.2);
+            const lowerBodyFactor = (weather / 10) + (time / 120) - (soreness / 20) + (exercises < 3 ? 0.2 : -0.2);
+
+            const prediction = neuron.predict(upperBodyFactor, lowerBodyFactor);
+
+            let decision, confidence, color;
+
+            if (neuron.activationFunction === 'sigmoid') {
+                confidence = Math.abs(prediction - 0.5) * 200;
+                if (prediction > 0.5) {
+                    decision = 'LEGS & GLUTES';
+                    color = 'rgba(100, 150, 255, 0.8)';
+                } else {
+                    decision = soreness > 7 ? 'CARDIO' : (time < 30 ? 'ABS' : 'ARMS');
+                    color = 'rgba(255, 100, 100, 0.8)';
+                }
+            } else {
+                if (prediction > 0.5) {
+                    decision = 'LEGS & GLUTES';
+                    color = 'rgba(100, 150, 255, 0.8)';
+                    confidence = 90;
+                } else {
+                    decision = soreness > 7 ? 'CARDIO' : (time < 30 ? 'ABS' : 'ARMS');
+                    color = 'rgba(255, 100, 100, 0.8)';
+                    confidence = 90;
+                }
+            }
+
+            document.getElementById('decisionResult').textContent = decision;
+            document.getElementById('decisionResult').style.background = color;
+            document.getElementById('confidence').textContent = Math.round(confidence) + '%';
+        }
+
+        // Draw neuron visualization
+        function drawNeuron() {
+            const w = neuronCanvas.width / window.devicePixelRatio;
+            const h = neuronCanvas.height / window.devicePixelRatio;
+
+            neuronCtx.clearRect(0, 0, neuronCanvas.width, neuronCanvas.height);
+
+            // Draw dendrites (inputs)
+            const inputs_visual = [
+                { x: 50, y: 80, label: 'Exercises', value: inputs.exercises.value },
+                { x: 50, y: 140, label: 'Weather', value: inputs.weather.value },
+                { x: 50, y: 200, label: 'Soreness', value: inputs.soreness.value },
+                { x: 50, y: 260, label: 'Time', value: inputs.time.value }
+            ];
+
+            const centerX = w / 2;
+            const centerY = h / 2;
+            const neuronRadius = 40;
+
+            // Draw dendrites
+            inputs_visual.forEach((input, i) => {
+                const activation = parseFloat(input.value) / (i === 3 ? 120 : 10);
+                neuronCtx.beginPath();
+                neuronCtx.moveTo(input.x + 80, input.y);
+                neuronCtx.quadraticCurveTo(
+                    centerX - 100, input.y,
+                    centerX - neuronRadius, centerY
+                );
+                neuronCtx.strokeStyle = `rgba(255, 255, 255, ${0.3 + activation * 0.7})`;
+                neuronCtx.lineWidth = 2 + activation * 3;
+                neuronCtx.stroke();
+
+                // Input nodes
+                neuronCtx.beginPath();
+                neuronCtx.arc(input.x + 80, input.y, 8, 0, Math.PI * 2);
+                neuronCtx.fillStyle = `rgba(150, 200, 255, ${0.5 + activation * 0.5})`;
+                neuronCtx.fill();
+                neuronCtx.strokeStyle = '#fff';
+                neuronCtx.lineWidth = 2;
+                neuronCtx.stroke();
+
+                // Labels
+                neuronCtx.fillStyle = '#fff';
+                neuronCtx.font = '12px Arial';
+                neuronCtx.textAlign = 'right';
+                neuronCtx.fillText(input.label, input.x + 70, input.y + 4);
+            });
+
+            // Draw neuron body
+            neuronCtx.beginPath();
+            neuronCtx.arc(centerX, centerY, neuronRadius, 0, Math.PI * 2);
+            const gradient = neuronCtx.createRadialGradient(centerX, centerY, 0, centerX, centerY, neuronRadius);
+            gradient.addColorStop(0, 'rgba(255, 200, 100, 0.9)');
+            gradient.addColorStop(1, 'rgba(255, 150, 50, 0.9)');
+            neuronCtx.fillStyle = gradient;
+            neuronCtx.fill();
+            neuronCtx.strokeStyle = '#fff';
+            neuronCtx.lineWidth = 3;
+            neuronCtx.stroke();
+
+            // Activation indicator
+            neuronCtx.fillStyle = '#fff';
+            neuronCtx.font = 'bold 14px Arial';
+            neuronCtx.textAlign = 'center';
+            neuronCtx.fillText('Σ', centerX, centerY + 5);
+
+            // Draw axon
+            const axonStartX = centerX + neuronRadius;
+            const axonEndX = w - 80;
+            const axonY = centerY;
+
+            neuronCtx.beginPath();
+            neuronCtx.moveTo(axonStartX, axonY);
+            neuronCtx.lineTo(axonEndX, axonY);
+            neuronCtx.strokeStyle = 'rgba(255, 255, 255, 0.6)';
+            neuronCtx.lineWidth = 8;
+            neuronCtx.stroke();
+
+            // Axon terminals
+            const terminals = [
+                { y: axonY - 40, label: 'Upper\nBody' },
+                { y: axonY + 40, label: 'Lower\nBody' }
+            ];
+
+            terminals.forEach((terminal, i) => {
+                neuronCtx.beginPath();
+                neuronCtx.moveTo(axonEndX, axonY);
+                neuronCtx.lineTo(axonEndX + 30, terminal.y);
+                neuronCtx.strokeStyle = 'rgba(255, 255, 255, 0.4)';
+                neuronCtx.lineWidth = 4;
+                neuronCtx.stroke();
+
+                neuronCtx.beginPath();
+                neuronCtx.arc(axonEndX + 30, terminal.y, 10, 0, Math.PI * 2);
+                neuronCtx.fillStyle = i === 1 ? 'rgba(100, 150, 255, 0.8)' : 'rgba(255, 100, 100, 0.8)';
+                neuronCtx.fill();
+                neuronCtx.strokeStyle = '#fff';
+                neuronCtx.lineWidth = 2;
+                neuronCtx.stroke();
+
+                neuronCtx.fillStyle = '#fff';
+                neuronCtx.font = '11px Arial';
+                neuronCtx.textAlign = 'left';
+                const lines = terminal.label.split('\n');
+                lines.forEach((line, idx) => {
+                    neuronCtx.fillText(line, axonEndX + 45, terminal.y + (idx - 0.5) * 12 + 4);
+                });
+            });
+        }
+
+        // Draw decision boundary
+        function drawBoundary() {
+            const w = boundaryCanvas.width / window.devicePixelRatio;
+            const h = boundaryCanvas.height / window.devicePixelRatio;
+
+            boundaryCtx.clearRect(0, 0, boundaryCanvas.width, boundaryCanvas.height);
+
+            // Draw decision boundary heatmap
+            const resolution = 50;
+            for (let i = 0; i < resolution; i++) {
+                for (let j = 0; j < resolution; j++) {
+                    const x = (i / resolution) * 2 - 1;
+                    const y = (j / resolution) * 2 - 1;
+                    const prediction = neuron.predict(x, y);
+
+                    const alpha = Math.abs(prediction - 0.5) * 0.3;
+                    const color = prediction > 0.5 ?
+                        `rgba(100, 150, 255, ${alpha})` :
+                        `rgba(255, 100, 100, ${alpha})`;
+
+                    boundaryCtx.fillStyle = color;
+                    boundaryCtx.fillRect(
+                        (x + 1) / 2 * w,
+                        (1 - y - 1) / 2 * h,
+                        w / resolution,
+                        h / resolution
+                    );
+                }
+            }
+
+            // Draw decision boundary line
+            boundaryCtx.beginPath();
+            boundaryCtx.strokeStyle = '#fff';
+            boundaryCtx.lineWidth = 3;
+
+            for (let i = 0; i <= 100; i++) {
+                const x = (i / 100) * 2 - 1;
+                // Decision boundary: w1*x + w2*y + b = 0 => y = -(w1*x + b) / w2
+                const y = -(neuron.weights[0] * x + neuron.bias) / neuron.weights[1];
+
+                const screenX = (x + 1) / 2 * w;
+                const screenY = (1 - y) / 2 * h;
+
+                if (i === 0) {
+                    boundaryCtx.moveTo(screenX, screenY);
+                } else {
+                    boundaryCtx.lineTo(screenX, screenY);
+                }
+            }
+            boundaryCtx.stroke();
+
+            // Draw training points
+            trainingPoints.forEach(point => {
+                const screenX = (point.x + 1) / 2 * w;
+                const screenY = (1 - point.y) / 2 * h;
+
+                boundaryCtx.beginPath();
+                boundaryCtx.arc(screenX, screenY, 6, 0, Math.PI * 2);
+                boundaryCtx.fillStyle = point.color;
+                boundaryCtx.fill();
+                boundaryCtx.strokeStyle = '#fff';
+                boundaryCtx.lineWidth = 2;
+                boundaryCtx.stroke();
+            });
+
+            // Draw axes
+            boundaryCtx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
+            boundaryCtx.lineWidth = 1;
+
+            // X axis
+            boundaryCtx.beginPath();
+            boundaryCtx.moveTo(0, h / 2);
+            boundaryCtx.lineTo(w, h / 2);
+            boundaryCtx.stroke();
+
+            // Y axis
+            boundaryCtx.beginPath();
+            boundaryCtx.moveTo(w / 2, 0);
+            boundaryCtx.lineTo(w / 2, h);
+            boundaryCtx.stroke();
+
+            // Labels
+            boundaryCtx.fillStyle = '#fff';
+            boundaryCtx.font = '12px Arial';
+            boundaryCtx.textAlign = 'center';
+            boundaryCtx.fillText('Upper Body Preference →', w / 2, h - 10);
+
+            boundaryCtx.save();
+            boundaryCtx.translate(15, h / 2);
+            boundaryCtx.rotate(-Math.PI / 2);
+            boundaryCtx.fillText('Lower Body Preference →', 0, 0);
+            boundaryCtx.restore();
+        }
+
+        // Update statistics
+        function updateStats() {
+            document.getElementById('weightUB').textContent = neuron.weights[0].toFixed(3);
+            document.getElementById('weightLB').textContent = neuron.weights[1].toFixed(3);
+            document.getElementById('biasValue').textContent = neuron.bias.toFixed(3);
+            document.getElementById('pointCount').textContent = trainingPoints.length;
+            document.getElementById('epochCount').textContent = neuron.epochs;
+
+            // Calculate accuracy
+            if (trainingPoints.length > 0) {
+                let correct = 0;
+                let totalLoss = 0;
+                trainingPoints.forEach(point => {
+                    const prediction = neuron.predict(point.x, point.y);
+                    const predictedLabel = prediction > 0.5 ? 1 : 0;
+                    if (predictedLabel === point.label) correct++;
+                    totalLoss += Math.pow(prediction - point.label, 2);
+                });
+                const accuracy = (correct / trainingPoints.length * 100).toFixed(1);
+                document.getElementById('accuracy').textContent = accuracy + '%';
+                document.getElementById('lossValue').textContent = (totalLoss / trainingPoints.length).toFixed(3);
+            } else {
+                document.getElementById('accuracy').textContent = '-';
+                document.getElementById('lossValue').textContent = '0.000';
+            }
+        }
+
+        // Animation loop
+        function animate() {
+            drawNeuron();
+            requestAnimationFrame(animate);
+        }
+
+        // Initial draw
+        updateDecision();
+        updateStats();
+        drawBoundary();
+        animate();
+
+        // Handle window resize
+        window.addEventListener('resize', () => {
+            resizeCanvas(neuronCanvas);
+            resizeCanvas(boundaryCanvas);
+            drawNeuron();
+            drawBoundary();
+        });
+    </script>
+</body>
+</html>
