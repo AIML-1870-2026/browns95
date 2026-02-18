@@ -1,0 +1,813 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>UNO Color Wheel - Palette Generator</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #000;
+            color: #fff;
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        h1 {
+            text-align: center;
+            margin-bottom: 10px;
+            font-size: 2.5rem;
+            color: #D00000;
+        }
+
+        .subtitle {
+            text-align: center;
+            margin-bottom: 30px;
+            color: #999;
+        }
+
+        .main-grid {
+            display: grid;
+            grid-template-columns: 1fr 350px;
+            gap: 30px;
+            margin-bottom: 30px;
+        }
+
+        .wheel-section {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        #colorWheel {
+            cursor: pointer;
+            filter: drop-shadow(0 0 20px rgba(208, 0, 0, 0.3));
+            transition: transform 0.3s ease;
+        }
+
+        #colorWheel:hover {
+            transform: scale(1.02);
+        }
+
+        #colorWheel.spinning {
+            animation: spin 2s linear infinite;
+        }
+
+        @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+
+        .controls-panel {
+            background: rgba(208, 0, 0, 0.1);
+            border: 2px solid #D00000;
+            border-radius: 15px;
+            padding: 20px;
+        }
+
+        .control-section {
+            margin-bottom: 25px;
+        }
+
+        .control-section h3 {
+            color: #D00000;
+            margin-bottom: 15px;
+            font-size: 1.2rem;
+            border-bottom: 2px solid rgba(208, 0, 0, 0.3);
+            padding-bottom: 8px;
+        }
+
+        .slider-group {
+            margin-bottom: 15px;
+        }
+
+        .slider-group label {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 5px;
+            font-size: 0.9rem;
+        }
+
+        input[type="range"] {
+            width: 100%;
+            height: 8px;
+            border-radius: 5px;
+            outline: none;
+            -webkit-appearance: none;
+            background: rgba(255, 255, 255, 0.2);
+        }
+
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            background: #D00000;
+            cursor: pointer;
+        }
+
+        input[type="range"]::-moz-range-thumb {
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            background: #D00000;
+            cursor: pointer;
+            border: none;
+        }
+
+        .color-preview {
+            width: 100%;
+            height: 60px;
+            border-radius: 8px;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            margin-bottom: 10px;
+        }
+
+        .hex-display {
+            text-align: center;
+            font-family: monospace;
+            font-size: 1.1rem;
+            padding: 8px;
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+
+        .hex-display:hover {
+            background: rgba(208, 0, 0, 0.3);
+        }
+
+        button {
+            width: 100%;
+            padding: 12px;
+            margin-bottom: 10px;
+            border: 2px solid #D00000;
+            background: rgba(208, 0, 0, 0.2);
+            color: #fff;
+            border-radius: 8px;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        button:hover {
+            background: rgba(208, 0, 0, 0.4);
+            transform: translateY(-2px);
+        }
+
+        button.active {
+            background: #D00000;
+        }
+
+        .palette-swatches {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
+            gap: 10px;
+            margin-top: 15px;
+        }
+
+        .swatch {
+            aspect-ratio: 1;
+            border-radius: 8px;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            cursor: pointer;
+            transition: transform 0.2s;
+            position: relative;
+        }
+
+        .swatch:hover {
+            transform: scale(1.1);
+            border-color: #D00000;
+        }
+
+        .swatch-label {
+            position: absolute;
+            bottom: -25px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 0.7rem;
+            white-space: nowrap;
+            pointer-events: none;
+        }
+
+        .hover-info {
+            position: fixed;
+            background: rgba(0, 0, 0, 0.9);
+            border: 2px solid #D00000;
+            border-radius: 8px;
+            padding: 10px;
+            pointer-events: none;
+            display: none;
+            z-index: 1000;
+        }
+
+        .accessibility-panel {
+            background: rgba(208, 0, 0, 0.1);
+            border: 2px solid #D00000;
+            border-radius: 15px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+
+        .contrast-checker {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .contrast-result {
+            grid-column: 1 / -1;
+            background: rgba(0, 0, 0, 0.3);
+            padding: 15px;
+            border-radius: 8px;
+            text-align: center;
+        }
+
+        .contrast-ratio {
+            font-size: 2rem;
+            font-weight: bold;
+            color: #D00000;
+            margin: 10px 0;
+        }
+
+        .standards {
+            display: flex;
+            justify-content: space-around;
+            margin-top: 10px;
+        }
+
+        .standard {
+            padding: 8px 15px;
+            border-radius: 5px;
+            font-weight: bold;
+        }
+
+        .standard.pass {
+            background: rgba(0, 200, 0, 0.3);
+            border: 2px solid #0C0;
+        }
+
+        .standard.fail {
+            background: rgba(200, 0, 0, 0.3);
+            border: 2px solid #C00;
+        }
+
+        .color-selector {
+            background: rgba(0, 0, 0, 0.3);
+            padding: 15px;
+            border-radius: 8px;
+        }
+
+        .color-selector h4 {
+            margin-bottom: 10px;
+            color: #D00000;
+        }
+
+        @media (max-width: 968px) {
+            .main-grid {
+                grid-template-columns: 1fr;
+            }
+
+            h1 {
+                font-size: 2rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>UNO Color Wheel</h1>
+        <div class="subtitle">Accessible Palette Generator</div>
+
+        <div class="main-grid">
+            <div class="wheel-section">
+                <canvas id="colorWheel" width="600" height="600"></canvas>
+                <div class="hover-info" id="hoverInfo"></div>
+            </div>
+
+            <div class="controls-panel">
+                <div class="control-section">
+                    <h3>Current Color</h3>
+                    <div class="color-preview" id="colorPreview"></div>
+                    <div class="hex-display" id="hexDisplay" title="Click to copy">#D00000</div>
+                </div>
+
+                <div class="control-section">
+                    <h3>RGB Controls</h3>
+                    <div class="slider-group">
+                        <label>
+                            <span>Red</span>
+                            <span id="rValue">208</span>
+                        </label>
+                        <input type="range" id="rSlider" min="0" max="255" value="208">
+                    </div>
+                    <div class="slider-group">
+                        <label>
+                            <span>Green</span>
+                            <span id="gValue">0</span>
+                        </label>
+                        <input type="range" id="gSlider" min="0" max="255" value="0">
+                    </div>
+                    <div class="slider-group">
+                        <label>
+                            <span>Blue</span>
+                            <span id="bValue">0</span>
+                        </label>
+                        <input type="range" id="bSlider" min="0" max="255" value="0">
+                    </div>
+                </div>
+
+                <div class="control-section">
+                    <h3>Palette Generation</h3>
+                    <button id="complementaryBtn">Generate Complementary</button>
+                    <button id="triadicBtn">Generate Triadic</button>
+                    <button id="analogousBtn">Generate Analogous</button>
+                    <button id="accessibleBtn">Accessible Mode</button>
+                </div>
+
+                <div class="control-section">
+                    <h3>Accessibility</h3>
+                    <button id="tritanopiaBtn">Tritanopia Simulator</button>
+                    <button id="spinBtn">Mix to White</button>
+                </div>
+
+                <div class="control-section" id="paletteSection">
+                    <h3>Color Palette</h3>
+                    <div class="palette-swatches" id="paletteSwatches"></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="accessibility-panel">
+            <h2 style="color: #D00000; margin-bottom: 20px;">Contrast Checker</h2>
+            <div class="contrast-checker">
+                <div class="color-selector">
+                    <h4>Foreground Color</h4>
+                    <input type="color" id="fgColor" value="#D00000" style="width: 100%; height: 50px; cursor: pointer;">
+                    <div style="margin-top: 10px; text-align: center; font-family: monospace;" id="fgHex">#D00000</div>
+                </div>
+                <div class="color-selector">
+                    <h4>Background Color</h4>
+                    <input type="color" id="bgColor" value="#000000" style="width: 100%; height: 50px; cursor: pointer;">
+                    <div style="margin-top: 10px; text-align: center; font-family: monospace;" id="bgHex">#000000</div>
+                </div>
+                <div class="contrast-result">
+                    <div>Contrast Ratio</div>
+                    <div class="contrast-ratio" id="contrastRatio">8.59:1</div>
+                    <div class="standards">
+                        <div class="standard pass" id="aaStandard">AA ✓</div>
+                        <div class="standard pass" id="aaaStandard">AAA ✓</div>
+                    </div>
+                    <div style="margin-top: 15px; padding: 20px; border-radius: 5px;" id="contrastPreview">
+                        <div style="font-size: 1.2rem; font-weight: bold;">Sample Text</div>
+                        <div style="font-size: 0.9rem;">This shows how the colors look together</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('colorWheel');
+        const ctx = canvas.getContext('2d');
+        const centerX = canvas.width / 2;
+        const centerY = canvas.height / 2;
+        const outerRadius = 280;
+        const innerRadius = 120;
+
+        let currentColor = { r: 208, g: 0, b: 0 };
+        let isSpinning = false;
+        let spinAngle = 0;
+        let glimmerOffset = 0;
+        let tritanopiaMode = false;
+        let accessibleMode = false;
+        let currentPalette = [];
+
+        // Draw UNO-style color wheel
+        function drawColorWheel() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.save();
+            ctx.translate(centerX, centerY);
+
+            if (isSpinning) {
+                ctx.rotate(spinAngle);
+            }
+
+            // Draw color wheel segments
+            const segments = 360;
+            for (let i = 0; i < segments; i++) {
+                const startAngle = (i / segments) * Math.PI * 2;
+                const endAngle = ((i + 1) / segments) * Math.PI * 2;
+
+                // Create gradient for each segment
+                const gradient = ctx.createRadialGradient(0, 0, innerRadius, 0, 0, outerRadius);
+
+                const hue = (i / segments) * 360;
+                let color1 = hslToRgb(hue, 1, 0.3);
+                let color2 = hslToRgb(hue, 1, 0.5 + Math.sin(glimmerOffset + i * 0.1) * 0.1);
+
+                if (tritanopiaMode) {
+                    color1 = simulateTritanopia(color1);
+                    color2 = simulateTritanopia(color2);
+                }
+
+                gradient.addColorStop(0, `rgb(${color1.r}, ${color1.g}, ${color1.b})`);
+                gradient.addColorStop(1, `rgb(${color2.r}, ${color2.g}, ${color2.b})`);
+
+                ctx.fillStyle = gradient;
+                ctx.beginPath();
+                ctx.arc(0, 0, outerRadius, startAngle, endAngle);
+                ctx.arc(0, 0, innerRadius, endAngle, startAngle, true);
+                ctx.closePath();
+                ctx.fill();
+            }
+
+            // Draw UNO "O" center
+            ctx.beginPath();
+            ctx.arc(0, 0, innerRadius, 0, Math.PI * 2);
+            ctx.fillStyle = '#000';
+            ctx.fill();
+            ctx.strokeStyle = '#D00000';
+            ctx.lineWidth = 8;
+            ctx.stroke();
+
+            // Draw "UNO" text
+            ctx.fillStyle = '#D00000';
+            ctx.font = 'bold 48px Arial';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText('UNO', 0, -10);
+
+            ctx.font = '16px Arial';
+            ctx.fillStyle = '#999';
+            ctx.fillText('MAVERICKS', 0, 30);
+
+            ctx.restore();
+        }
+
+        // HSL to RGB conversion
+        function hslToRgb(h, s, l) {
+            h = h / 360;
+            const q = l < 0.5 ? l * (1 + s) : l + s - l * s;
+            const p = 2 * l - q;
+
+            const r = Math.round(hueToRgb(p, q, h + 1/3) * 255);
+            const g = Math.round(hueToRgb(p, q, h) * 255);
+            const b = Math.round(hueToRgb(p, q, h - 1/3) * 255);
+
+            return { r, g, b };
+        }
+
+        function hueToRgb(p, q, t) {
+            if (t < 0) t += 1;
+            if (t > 1) t -= 1;
+            if (t < 1/6) return p + (q - p) * 6 * t;
+            if (t < 1/2) return q;
+            if (t < 2/3) return p + (q - p) * (2/3 - t) * 6;
+            return p;
+        }
+
+        // RGB to HSL conversion
+        function rgbToHsl(r, g, b) {
+            r /= 255;
+            g /= 255;
+            b /= 255;
+
+            const max = Math.max(r, g, b);
+            const min = Math.min(r, g, b);
+            let h, s, l = (max + min) / 2;
+
+            if (max === min) {
+                h = s = 0;
+            } else {
+                const d = max - min;
+                s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+
+                switch (max) {
+                    case r: h = ((g - b) / d + (g < b ? 6 : 0)) / 6; break;
+                    case g: h = ((b - r) / d + 2) / 6; break;
+                    case b: h = ((r - g) / d + 4) / 6; break;
+                }
+            }
+
+            return { h: h * 360, s, l };
+        }
+
+        // Simulate tritanopia
+        function simulateTritanopia(color) {
+            const { r, g, b } = color;
+            return {
+                r: Math.round(0.95 * r + 0.05 * g + 0.0 * b),
+                g: Math.round(0.0 * r + 0.433 * g + 0.567 * b),
+                b: Math.round(0.0 * r + 0.475 * g + 0.525 * b)
+            };
+        }
+
+        // Calculate relative luminance
+        function getLuminance(r, g, b) {
+            const [rs, gs, bs] = [r, g, b].map(c => {
+                c = c / 255;
+                return c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4);
+            });
+            return 0.2126 * rs + 0.7152 * gs + 0.0722 * bs;
+        }
+
+        // Calculate contrast ratio
+        function getContrastRatio(rgb1, rgb2) {
+            const lum1 = getLuminance(rgb1.r, rgb1.g, rgb1.b);
+            const lum2 = getLuminance(rgb2.r, rgb2.g, rgb2.b);
+            const lighter = Math.max(lum1, lum2);
+            const darker = Math.min(lum1, lum2);
+            return (lighter + 0.05) / (darker + 0.05);
+        }
+
+        // Update color from RGB sliders
+        function updateColorFromSliders() {
+            currentColor.r = parseInt(document.getElementById('rSlider').value);
+            currentColor.g = parseInt(document.getElementById('gSlider').value);
+            currentColor.b = parseInt(document.getElementById('bSlider').value);
+
+            document.getElementById('rValue').textContent = currentColor.r;
+            document.getElementById('gValue').textContent = currentColor.g;
+            document.getElementById('bValue').textContent = currentColor.b;
+
+            updateColorDisplay();
+        }
+
+        // Update color display
+        function updateColorDisplay() {
+            const hex = rgbToHex(currentColor.r, currentColor.g, currentColor.b);
+            document.getElementById('colorPreview').style.background = hex;
+            document.getElementById('hexDisplay').textContent = hex;
+        }
+
+        // RGB to Hex
+        function rgbToHex(r, g, b) {
+            return '#' + [r, g, b].map(x => {
+                const hex = x.toString(16);
+                return hex.length === 1 ? '0' + hex : hex;
+            }).join('').toUpperCase();
+        }
+
+        // Hex to RGB
+        function hexToRgb(hex) {
+            const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+            return result ? {
+                r: parseInt(result[1], 16),
+                g: parseInt(result[2], 16),
+                b: parseInt(result[3], 16)
+            } : null;
+        }
+
+        // Generate complementary colors
+        function generateComplementary() {
+            const hsl = rgbToHsl(currentColor.r, currentColor.g, currentColor.b);
+            currentPalette = [
+                currentColor,
+                hslToRgb((hsl.h + 180) % 360, hsl.s, hsl.l)
+            ];
+            displayPalette();
+        }
+
+        // Generate triadic colors
+        function generateTriadic() {
+            const hsl = rgbToHsl(currentColor.r, currentColor.g, currentColor.b);
+            currentPalette = [
+                currentColor,
+                hslToRgb((hsl.h + 120) % 360, hsl.s, hsl.l),
+                hslToRgb((hsl.h + 240) % 360, hsl.s, hsl.l)
+            ];
+            displayPalette();
+        }
+
+        // Generate analogous colors
+        function generateAnalogous() {
+            const hsl = rgbToHsl(currentColor.r, currentColor.g, currentColor.b);
+            currentPalette = [
+                hslToRgb((hsl.h - 30 + 360) % 360, hsl.s, hsl.l),
+                currentColor,
+                hslToRgb((hsl.h + 30) % 360, hsl.s, hsl.l),
+                hslToRgb((hsl.h + 60) % 360, hsl.s, hsl.l)
+            ];
+            displayPalette();
+        }
+
+        // Generate accessible palette
+        function generateAccessiblePalette() {
+            const colors = [];
+            const black = { r: 0, g: 0, b: 0 };
+
+            // Generate colors with good contrast against black
+            for (let h = 0; h < 360; h += 60) {
+                for (let l = 0.5; l <= 0.9; l += 0.2) {
+                    const color = hslToRgb(h, 1, l);
+                    const contrast = getContrastRatio(color, black);
+
+                    if (contrast >= 4.5) { // AA standard for normal text
+                        colors.push(color);
+                        if (colors.length >= 6) break;
+                    }
+                }
+                if (colors.length >= 6) break;
+            }
+
+            currentPalette = colors;
+            displayPalette();
+        }
+
+        // Display palette swatches
+        function displayPalette() {
+            const container = document.getElementById('paletteSwatches');
+            container.innerHTML = '';
+
+            currentPalette.forEach((color, index) => {
+                const swatch = document.createElement('div');
+                swatch.className = 'swatch';
+                swatch.style.background = rgbToHex(color.r, color.g, color.b);
+                swatch.title = rgbToHex(color.r, color.g, color.b);
+
+                swatch.addEventListener('click', () => {
+                    currentColor = color;
+                    document.getElementById('rSlider').value = color.r;
+                    document.getElementById('gSlider').value = color.g;
+                    document.getElementById('bSlider').value = color.b;
+                    updateColorFromSliders();
+                });
+
+                container.appendChild(swatch);
+            });
+        }
+
+        // Update contrast checker
+        function updateContrastChecker() {
+            const fgHex = document.getElementById('fgColor').value;
+            const bgHex = document.getElementById('bgColor').value;
+
+            document.getElementById('fgHex').textContent = fgHex.toUpperCase();
+            document.getElementById('bgHex').textContent = bgHex.toUpperCase();
+
+            const fg = hexToRgb(fgHex);
+            const bg = hexToRgb(bgHex);
+
+            const ratio = getContrastRatio(fg, bg);
+            document.getElementById('contrastRatio').textContent = ratio.toFixed(2) + ':1';
+
+            // AA: 4.5:1 for normal text, 3:1 for large text
+            // AAA: 7:1 for normal text, 4.5:1 for large text
+            const aaPass = ratio >= 4.5;
+            const aaaPass = ratio >= 7;
+
+            const aaEl = document.getElementById('aaStandard');
+            const aaaEl = document.getElementById('aaaStandard');
+
+            aaEl.className = 'standard ' + (aaPass ? 'pass' : 'fail');
+            aaEl.textContent = 'AA ' + (aaPass ? '✓' : '✗');
+
+            aaaEl.className = 'standard ' + (aaaPass ? 'pass' : 'fail');
+            aaaEl.textContent = 'AAA ' + (aaaPass ? '✓' : '✗');
+
+            const preview = document.getElementById('contrastPreview');
+            preview.style.color = fgHex;
+            preview.style.background = bgHex;
+        }
+
+        // Mouse interaction
+        canvas.addEventListener('mousemove', (e) => {
+            if (isSpinning) return;
+
+            const rect = canvas.getBoundingClientRect();
+            const x = e.clientX - rect.left - centerX;
+            const y = e.clientY - rect.top - centerY;
+            const distance = Math.sqrt(x * x + y * y);
+
+            if (distance > innerRadius && distance < outerRadius) {
+                const angle = Math.atan2(y, x);
+                const hue = ((angle + Math.PI) / (Math.PI * 2)) * 360;
+                const saturation = (distance - innerRadius) / (outerRadius - innerRadius);
+
+                const color = hslToRgb(hue, 1, 0.5);
+                const hex = rgbToHex(color.r, color.g, color.b);
+
+                const info = document.getElementById('hoverInfo');
+                info.style.display = 'block';
+                info.style.left = e.clientX + 15 + 'px';
+                info.style.top = e.clientY + 15 + 'px';
+                info.innerHTML = `
+                    <div style="width: 50px; height: 50px; background: ${hex}; border-radius: 5px; margin-bottom: 5px;"></div>
+                    <div>${hex}</div>
+                `;
+            } else {
+                document.getElementById('hoverInfo').style.display = 'none';
+            }
+        });
+
+        canvas.addEventListener('mouseleave', () => {
+            document.getElementById('hoverInfo').style.display = 'none';
+        });
+
+        canvas.addEventListener('click', (e) => {
+            const rect = canvas.getBoundingClientRect();
+            const x = e.clientX - rect.left - centerX;
+            const y = e.clientY - rect.top - centerY;
+            const distance = Math.sqrt(x * x + y * y);
+
+            if (distance > innerRadius && distance < outerRadius) {
+                const angle = Math.atan2(y, x);
+                const hue = ((angle + Math.PI) / (Math.PI * 2)) * 360;
+
+                const color = hslToRgb(hue, 1, 0.5);
+                currentColor = color;
+
+                document.getElementById('rSlider').value = color.r;
+                document.getElementById('gSlider').value = color.g;
+                document.getElementById('bSlider').value = color.b;
+
+                updateColorFromSliders();
+            }
+        });
+
+        // Copy hex to clipboard
+        document.getElementById('hexDisplay').addEventListener('click', () => {
+            const hex = document.getElementById('hexDisplay').textContent;
+            navigator.clipboard.writeText(hex);
+
+            const original = document.getElementById('hexDisplay').textContent;
+            document.getElementById('hexDisplay').textContent = 'Copied!';
+            setTimeout(() => {
+                document.getElementById('hexDisplay').textContent = original;
+            }, 1000);
+        });
+
+        // Button controls
+        document.getElementById('rSlider').addEventListener('input', updateColorFromSliders);
+        document.getElementById('gSlider').addEventListener('input', updateColorFromSliders);
+        document.getElementById('bSlider').addEventListener('input', updateColorFromSliders);
+
+        document.getElementById('complementaryBtn').addEventListener('click', generateComplementary);
+        document.getElementById('triadicBtn').addEventListener('click', generateTriadic);
+        document.getElementById('analogousBtn').addEventListener('click', generateAnalogous);
+        document.getElementById('accessibleBtn').addEventListener('click', () => {
+            accessibleMode = !accessibleMode;
+            document.getElementById('accessibleBtn').classList.toggle('active');
+            if (accessibleMode) {
+                generateAccessiblePalette();
+            }
+        });
+
+        document.getElementById('tritanopiaBtn').addEventListener('click', () => {
+            tritanopiaMode = !tritanopiaMode;
+            document.getElementById('tritanopiaBtn').classList.toggle('active');
+        });
+
+        document.getElementById('spinBtn').addEventListener('click', () => {
+            isSpinning = !isSpinning;
+            document.getElementById('spinBtn').classList.toggle('active');
+
+            if (!isSpinning) {
+                // Reset to white when stopping
+                setTimeout(() => {
+                    currentColor = { r: 255, g: 255, b: 255 };
+                    document.getElementById('rSlider').value = 255;
+                    document.getElementById('gSlider').value = 255;
+                    document.getElementById('bSlider').value = 255;
+                    updateColorFromSliders();
+                }, 2000);
+            }
+        });
+
+        document.getElementById('fgColor').addEventListener('input', updateContrastChecker);
+        document.getElementById('bgColor').addEventListener('input', updateContrastChecker);
+
+        // Animation loop
+        function animate() {
+            glimmerOffset += 0.05;
+
+            if (isSpinning) {
+                spinAngle += 0.2;
+            }
+
+            drawColorWheel();
+            requestAnimationFrame(animate);
+        }
+
+        // Initialize
+        updateColorDisplay();
+        updateContrastChecker();
+        animate();
+    </script>
+</body>
+</html>
