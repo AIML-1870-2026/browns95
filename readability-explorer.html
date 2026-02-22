@@ -1,0 +1,543 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Readability Explorer - Othello's Final Monologue</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Georgia', serif;
+            background: #1a1a1a;
+            color: #fff;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        h1 {
+            text-align: center;
+            margin-bottom: 30px;
+            font-size: 2.5rem;
+            color: #8B4513;
+        }
+
+        .main-content {
+            display: grid;
+            grid-template-columns: 1fr 400px;
+            gap: 30px;
+            margin-bottom: 30px;
+        }
+
+        .text-container {
+            background: #fff;
+            color: #000;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+            overflow-y: auto;
+            max-height: 600px;
+        }
+
+        .text-content {
+            line-height: 1.8;
+            transition: font-size 0.3s ease;
+        }
+
+        .image-container {
+            text-align: center;
+        }
+
+        .image-container img {
+            width: 100%;
+            max-width: 400px;
+            border-radius: 10px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+        }
+
+        .controls-panel {
+            background: rgba(139, 69, 19, 0.1);
+            border: 2px solid #8B4513;
+            border-radius: 15px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+
+        .control-section {
+            margin-bottom: 25px;
+        }
+
+        .control-section h3 {
+            color: #8B4513;
+            margin-bottom: 15px;
+            font-size: 1.2rem;
+            border-bottom: 2px solid rgba(139, 69, 19, 0.3);
+            padding-bottom: 8px;
+        }
+
+        .slider-group {
+            margin-bottom: 15px;
+        }
+
+        .slider-group label {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 5px;
+            font-size: 0.9rem;
+        }
+
+        input[type="range"] {
+            width: 100%;
+            height: 8px;
+            border-radius: 5px;
+            outline: none;
+            -webkit-appearance: none;
+            background: rgba(255, 255, 255, 0.2);
+        }
+
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            background: #8B4513;
+            cursor: pointer;
+        }
+
+        input[type="range"]::-moz-range-thumb {
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            background: #8B4513;
+            cursor: pointer;
+            border: none;
+        }
+
+        .vision-buttons {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+            gap: 10px;
+        }
+
+        .vision-btn {
+            padding: 10px;
+            border: 2px solid #8B4513;
+            background: rgba(139, 69, 19, 0.2);
+            color: #fff;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-size: 0.9rem;
+        }
+
+        .vision-btn:hover {
+            background: rgba(139, 69, 19, 0.4);
+        }
+
+        .vision-btn.active {
+            background: #8B4513;
+        }
+
+        .radio-group {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .radio-option {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .radio-option input[type="radio"] {
+            width: 18px;
+            height: 18px;
+            cursor: pointer;
+        }
+
+        select {
+            width: 100%;
+            padding: 10px;
+            border-radius: 8px;
+            border: 2px solid #8B4513;
+            background: rgba(0, 0, 0, 0.3);
+            color: #fff;
+            font-size: 1rem;
+            cursor: pointer;
+        }
+
+        .contrast-display {
+            background: rgba(0, 0, 0, 0.3);
+            padding: 20px;
+            border-radius: 10px;
+            text-align: center;
+        }
+
+        .contrast-ratio {
+            font-size: 2.5rem;
+            font-weight: bold;
+            color: #8B4513;
+            margin: 10px 0;
+        }
+
+        .wcag-rating {
+            margin-top: 15px;
+            padding: 10px;
+            border-radius: 5px;
+            font-weight: bold;
+        }
+
+        .wcag-rating.pass {
+            background: rgba(0, 200, 0, 0.3);
+            border: 2px solid #0C0;
+        }
+
+        .wcag-rating.fail {
+            background: rgba(200, 0, 0, 0.3);
+            border: 2px solid #C00;
+        }
+
+        @media (max-width: 968px) {
+            .main-content {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Readability Explorer: Othello's Final Monologue</h1>
+
+        <div class="main-content">
+            <div class="text-container" id="textContainer">
+                <div class="text-content" id="textContent">
+                    <h2 style="margin-bottom: 20px;">Othello - Act V, Scene II</h2>
+                    <p style="font-style: italic; margin-bottom: 15px;">OTHELLO:</p>
+                    <p>Soft you; a word or two before you go.</p>
+                    <p>I have done the state some service, and they know't.</p>
+                    <p>No more of that. I pray you, in your letters,</p>
+                    <p>When you shall these unlucky deeds relate,</p>
+                    <p>Speak of me as I am; nothing extenuate,</p>
+                    <p>Nor set down aught in malice: then must you speak</p>
+                    <p>Of one that loved not wisely but too well;</p>
+                    <p>Of one not easily jealous, but being wrought</p>
+                    <p>Perplex'd in the extreme; of one whose hand,</p>
+                    <p>Like the base Indian, threw a pearl away</p>
+                    <p>Richer than all his tribe; of one whose subdued eyes,</p>
+                    <p>Albeit unused to the melting mood,</p>
+                    <p>Drop tears as fast as the Arabian trees</p>
+                    <p>Their medicinal gum. Set you down this;</p>
+                    <p>And say besides, that in Aleppo once,</p>
+                    <p>Where a malignant and a turban'd Turk</p>
+                    <p>Beat a Venetian and traduced the state,</p>
+                    <p>I took by the throat the circumcised dog,</p>
+                    <p>And smote him, thus.</p>
+                    <p style="font-style: italic; margin-top: 15px;">[Stabs himself]</p>
+                    <p style="margin-top: 15px;">I kiss'd thee ere I kill'd thee: no way but this;</p>
+                    <p>Killing myself, to die upon a kiss.</p>
+                    <p style="font-style: italic; margin-top: 15px;">[Falls on the bed, and dies]</p>
+                </div>
+            </div>
+
+            <div class="image-container">
+                <img id="othelloImage" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='400' height='600' viewBox='0 0 400 600'%3E%3Crect width='400' height='600' fill='%23654321'/%3E%3Ctext x='200' y='250' font-size='24' fill='white' text-anchor='middle'%3EOthello%3C/text%3E%3Ctext x='200' y='300' font-size='18' fill='%23D4AF37' text-anchor='middle'%3ETragic Hero%3C/text%3E%3Ctext x='200' y='350' font-size='14' fill='white' text-anchor='middle'%3EThe Moor of Venice%3C/text%3E%3C/svg%3E" alt="Othello">
+            </div>
+        </div>
+
+        <div class="controls-panel">
+            <div class="control-section">
+                <h3>Text Size</h3>
+                <div class="slider-group">
+                    <label>
+                        <span>Font Size</span>
+                        <span id="fontSizeValue">16px</span>
+                    </label>
+                    <input type="range" id="fontSizeSlider" min="12" max="32" value="16" step="1">
+                </div>
+            </div>
+
+            <div class="control-section">
+                <h3>Text Color (RGB)</h3>
+                <div class="slider-group">
+                    <label>
+                        <span>Red</span>
+                        <span id="redValue">0</span>
+                    </label>
+                    <input type="range" id="redSlider" min="0" max="255" value="0">
+                </div>
+                <div class="slider-group">
+                    <label>
+                        <span>Green</span>
+                        <span id="greenValue">0</span>
+                    </label>
+                    <input type="range" id="greenSlider" min="0" max="255" value="0">
+                </div>
+                <div class="slider-group">
+                    <label>
+                        <span>Blue</span>
+                        <span id="blueValue">0</span>
+                    </label>
+                    <input type="range" id="blueSlider" min="0" max="255" value="0">
+                </div>
+            </div>
+
+            <div class="control-section">
+                <h3>Vision Type Simulation</h3>
+                <div class="radio-group">
+                    <label class="radio-option">
+                        <input type="radio" name="vision" value="normal" checked>
+                        <span>Normal Vision</span>
+                    </label>
+                    <label class="radio-option">
+                        <input type="radio" name="vision" value="protanopia">
+                        <span>Protanopia (Red-Blind)</span>
+                    </label>
+                    <label class="radio-option">
+                        <input type="radio" name="vision" value="deuteranopia">
+                        <span>Deuteranopia (Green-Blind)</span>
+                    </label>
+                    <label class="radio-option">
+                        <input type="radio" name="vision" value="tritanopia">
+                        <span>Tritanopia (Blue-Blind)</span>
+                    </label>
+                    <label class="radio-option">
+                        <input type="radio" name="vision" value="monochromacy">
+                        <span>Monochromacy (Grayscale)</span>
+                    </label>
+                </div>
+            </div>
+
+            <div class="control-section">
+                <h3>Preset Color Combinations</h3>
+                <select id="presetSelect">
+                    <option value="">Select a preset...</option>
+                    <option value="high-contrast">High Contrast (Black on White)</option>
+                    <option value="low-contrast">Low Contrast (Light Gray on White)</option>
+                    <option value="dark-mode">Dark Mode (White on Black)</option>
+                    <option value="sepia">Sepia Tone</option>
+                    <option value="blue-white">Blue on White</option>
+                    <option value="fail-wcag-1">WCAG Fail: Yellow on White</option>
+                    <option value="fail-wcag-2">WCAG Fail: Light Gray on Gray</option>
+                    <option value="fail-wcag-3">WCAG Fail: Orange on Red</option>
+                </select>
+            </div>
+
+            <div class="control-section">
+                <h3>Contrast Ratio</h3>
+                <div class="contrast-display">
+                    <div>Contrast Ratio</div>
+                    <div class="contrast-ratio" id="contrastRatio">21.00:1</div>
+                    <div class="wcag-rating pass" id="wcagRating">
+                        ✓ WCAG AAA Pass (7:1 minimum)
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Elements
+        const textContent = document.getElementById('textContent');
+        const textContainer = document.getElementById('textContainer');
+        const othelloImage = document.getElementById('othelloImage');
+        const fontSizeSlider = document.getElementById('fontSizeSlider');
+        const fontSizeValue = document.getElementById('fontSizeValue');
+        const redSlider = document.getElementById('redSlider');
+        const greenSlider = document.getElementById('greenSlider');
+        const blueSlider = document.getElementById('blueSlider');
+        const redValue = document.getElementById('redValue');
+        const greenValue = document.getElementById('greenValue');
+        const blueValue = document.getElementById('blueValue');
+        const visionRadios = document.querySelectorAll('input[name="vision"]');
+        const presetSelect = document.getElementById('presetSelect');
+        const contrastRatio = document.getElementById('contrastRatio');
+        const wcagRating = document.getElementById('wcagRating');
+
+        let currentVision = 'normal';
+        let textColor = { r: 0, g: 0, b: 0 };
+        let bgColor = { r: 255, g: 255, b: 255 };
+
+        // Font size control
+        fontSizeSlider.addEventListener('input', (e) => {
+            const size = e.target.value + 'px';
+            fontSizeValue.textContent = size;
+            textContent.style.fontSize = size;
+        });
+
+        // RGB sliders
+        function updateTextColor() {
+            textColor.r = parseInt(redSlider.value);
+            textColor.g = parseInt(greenSlider.value);
+            textColor.b = parseInt(blueSlider.value);
+
+            redValue.textContent = textColor.r;
+            greenValue.textContent = textColor.g;
+            blueValue.textContent = textColor.b;
+
+            applyVisionFilter();
+            updateContrast();
+        }
+
+        redSlider.addEventListener('input', updateTextColor);
+        greenSlider.addEventListener('input', updateTextColor);
+        blueSlider.addEventListener('input', updateTextColor);
+
+        // Vision simulation functions
+        function simulateProtanopia(color) {
+            return {
+                r: Math.round(0.56667 * color.r + 0.43333 * color.g + 0.00000 * color.b),
+                g: Math.round(0.55833 * color.r + 0.44167 * color.g + 0.00000 * color.b),
+                b: Math.round(0.00000 * color.r + 0.24167 * color.g + 0.75833 * color.b)
+            };
+        }
+
+        function simulateDeuteranopia(color) {
+            return {
+                r: Math.round(0.625 * color.r + 0.375 * color.g + 0.0 * color.b),
+                g: Math.round(0.7 * color.r + 0.3 * color.g + 0.0 * color.b),
+                b: Math.round(0.0 * color.r + 0.3 * color.g + 0.7 * color.b)
+            };
+        }
+
+        function simulateTritanopia(color) {
+            return {
+                r: Math.round(0.95 * color.r + 0.05 * color.g + 0.0 * color.b),
+                g: Math.round(0.0 * color.r + 0.433 * color.g + 0.567 * color.b),
+                b: Math.round(0.0 * color.r + 0.475 * color.g + 0.525 * color.b)
+            };
+        }
+
+        function simulateMonochromacy(color) {
+            const gray = Math.round(0.299 * color.r + 0.587 * color.g + 0.114 * color.b);
+            return { r: gray, g: gray, b: gray };
+        }
+
+        function applyVisionFilter() {
+            let displayColor = { ...textColor };
+            let displayBgColor = { ...bgColor };
+
+            switch(currentVision) {
+                case 'protanopia':
+                    displayColor = simulateProtanopia(textColor);
+                    displayBgColor = simulateProtanopia(bgColor);
+                    break;
+                case 'deuteranopia':
+                    displayColor = simulateDeuteranopia(textColor);
+                    displayBgColor = simulateDeuteranopia(bgColor);
+                    break;
+                case 'tritanopia':
+                    displayColor = simulateTritanopia(textColor);
+                    displayBgColor = simulateTritanopia(bgColor);
+                    break;
+                case 'monochromacy':
+                    displayColor = simulateMonochromacy(textColor);
+                    displayBgColor = simulateMonochromacy(bgColor);
+                    break;
+            }
+
+            textContent.style.color = `rgb(${displayColor.r}, ${displayColor.g}, ${displayColor.b})`;
+            textContainer.style.background = `rgb(${displayBgColor.r}, ${displayBgColor.g}, ${displayBgColor.b})`;
+
+            // Apply filter to image
+            applyImageFilter(displayColor, displayBgColor);
+        }
+
+        function applyImageFilter(color, bg) {
+            let filter = '';
+
+            switch(currentVision) {
+                case 'protanopia':
+                case 'deuteranopia':
+                case 'tritanopia':
+                    filter = 'saturate(0.7) hue-rotate(10deg)';
+                    break;
+                case 'monochromacy':
+                    filter = 'grayscale(100%)';
+                    break;
+            }
+
+            othelloImage.style.filter = filter;
+        }
+
+        // Vision type radio buttons
+        visionRadios.forEach(radio => {
+            radio.addEventListener('change', (e) => {
+                currentVision = e.target.value;
+                applyVisionFilter();
+            });
+        });
+
+        // Calculate relative luminance
+        function getLuminance(r, g, b) {
+            const [rs, gs, bs] = [r, g, b].map(c => {
+                c = c / 255;
+                return c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4);
+            });
+            return 0.2126 * rs + 0.7152 * gs + 0.0722 * bs;
+        }
+
+        // Calculate contrast ratio
+        function updateContrast() {
+            const L1 = getLuminance(textColor.r, textColor.g, textColor.b);
+            const L2 = getLuminance(bgColor.r, bgColor.g, bgColor.b);
+
+            const lighter = Math.max(L1, L2);
+            const darker = Math.min(L1, L2);
+
+            const ratio = (lighter + 0.05) / (darker + 0.05);
+            contrastRatio.textContent = ratio.toFixed(2) + ':1';
+
+            // WCAG ratings
+            if (ratio >= 7) {
+                wcagRating.className = 'wcag-rating pass';
+                wcagRating.textContent = '✓ WCAG AAA Pass (7:1 minimum)';
+            } else if (ratio >= 4.5) {
+                wcagRating.className = 'wcag-rating pass';
+                wcagRating.textContent = '✓ WCAG AA Pass (4.5:1 minimum)';
+            } else {
+                wcagRating.className = 'wcag-rating fail';
+                wcagRating.textContent = '✗ WCAG Fail (4.5:1 minimum required)';
+            }
+        }
+
+        // Preset color combinations
+        presetSelect.addEventListener('change', (e) => {
+            const preset = e.target.value;
+
+            const presets = {
+                'high-contrast': { text: { r: 0, g: 0, b: 0 }, bg: { r: 255, g: 255, b: 255 } },
+                'low-contrast': { text: { r: 200, g: 200, b: 200 }, bg: { r: 255, g: 255, b: 255 } },
+                'dark-mode': { text: { r: 255, g: 255, b: 255 }, bg: { r: 0, g: 0, b: 0 } },
+                'sepia': { text: { r: 94, g: 38, b: 18 }, bg: { r: 240, g: 230, b: 210 } },
+                'blue-white': { text: { r: 0, g: 0, b: 255 }, bg: { r: 255, g: 255, b: 255 } },
+                'fail-wcag-1': { text: { r: 255, g: 255, b: 0 }, bg: { r: 255, g: 255, b: 255 } },
+                'fail-wcag-2': { text: { r: 180, g: 180, b: 180 }, bg: { r: 200, g: 200, b: 200 } },
+                'fail-wcag-3': { text: { r: 255, g: 140, b: 0 }, bg: { r: 255, g: 0, b: 0 } }
+            };
+
+            if (presets[preset]) {
+                textColor = presets[preset].text;
+                bgColor = presets[preset].bg;
+
+                redSlider.value = textColor.r;
+                greenSlider.value = textColor.g;
+                blueSlider.value = textColor.b;
+
+                updateTextColor();
+            }
+        });
+
+        // Initialize
+        updateTextColor();
+    </script>
+</body>
+</html>
