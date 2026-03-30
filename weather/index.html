@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Weather Dashboard</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div class="app">
+    <header>
+      <h1>Weather Dashboard</h1>
+      <div class="unit-toggle">
+        <button id="btn-celsius" class="unit-btn active" aria-pressed="true">°C</button>
+        <button id="btn-fahrenheit" class="unit-btn" aria-pressed="false">°F</button>
+      </div>
+    </header>
+
+    <div class="search-bar">
+      <input
+        type="text"
+        id="city-input"
+        placeholder="Search for a city..."
+        autocomplete="off"
+        aria-label="City name"
+      />
+      <button id="search-btn" aria-label="Search">Search</button>
+    </div>
+
+    <div id="error-message" class="error-message hidden" role="alert"></div>
+
+    <div id="loading" class="loading hidden" aria-live="polite">
+      <div class="spinner"></div>
+      <span>Loading weather data...</span>
+    </div>
+
+    <main id="weather-content" class="hidden">
+      <div class="card main-card">
+        <div class="location">
+          <h2 id="city-name"></h2>
+          <span id="country-code" class="country"></span>
+        </div>
+        <div class="weather-primary">
+          <img id="weather-icon" src="" alt="" />
+          <div class="temp-block">
+            <span id="temperature" class="temperature"></span>
+            <span id="condition" class="condition"></span>
+          </div>
+        </div>
+        <div class="weather-details">
+          <div class="detail-item">
+            <span class="detail-icon">💧</span>
+            <span class="detail-label">Humidity</span>
+            <span id="humidity" class="detail-value"></span>
+          </div>
+          <div class="detail-item">
+            <span class="detail-icon">💨</span>
+            <span class="detail-label">Wind</span>
+            <span id="wind-speed" class="detail-value"></span>
+          </div>
+          <div class="detail-item">
+            <span class="detail-icon">🌡️</span>
+            <span class="detail-label">Feels Like</span>
+            <span id="feels-like" class="detail-value"></span>
+          </div>
+        </div>
+      </div>
+
+      <div class="card-row">
+        <div class="card rain-card">
+          <div class="card-icon rain-icon">🌧️</div>
+          <div class="card-body">
+            <div class="card-label">Chance of Rain</div>
+            <div id="rain-chance" class="card-value rain-value"></div>
+            <div class="card-sub">Next 24 hours</div>
+          </div>
+        </div>
+
+        <div id="uv-card" class="card uv-card">
+          <div class="card-icon">☀️</div>
+          <div class="card-body">
+            <div class="card-label">UV Index</div>
+            <div class="uv-display">
+              <span id="uv-index" class="card-value"></span>
+              <span id="uv-badge" class="uv-badge"></span>
+            </div>
+            <div id="uv-bar-container" class="uv-bar-container">
+              <div id="uv-bar" class="uv-bar"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
