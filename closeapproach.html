@@ -5,6 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 <title>Close Approach — NASA NEO Dashboard</title>
 <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;600;700;900&family=Share+Tech+Mono&display=swap" rel="stylesheet"/>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
 <style>
 :root {
   --bg: #020916;
@@ -357,6 +359,62 @@ tbody td { padding: 0.5rem 0.75rem; color: var(--text); border-bottom: 1px solid
   transition: background 0.2s;
 }
 .retry-btn:hover { background: rgba(255,23,68,0.15); }
+
+/* ── Earth view tab ──────────────────────────────────── */
+#earth-container {
+  width: 100%;
+  height: 600px;
+  border-radius: 16px;
+  overflow: hidden;
+  position: relative;
+  border: 1px solid var(--border);
+  background: #000;
+}
+#earth-canvas { display: block; width: 100% !important; height: 100% !important; }
+
+#earth-tooltip {
+  position: absolute;
+  background: rgba(6,13,31,0.92);
+  border: 1px solid var(--teal);
+  border-radius: 8px;
+  padding: 0.6rem 0.9rem;
+  font-size: 0.72rem;
+  pointer-events: none;
+  display: none;
+  max-width: 220px;
+  z-index: 10;
+  box-shadow: 0 0 16px rgba(0,229,255,0.2);
+}
+#earth-tooltip .tt-name {
+  font-family: var(--font-main);
+  font-size: 0.65rem;
+  color: var(--teal);
+  margin-bottom: 0.3rem;
+}
+#earth-tooltip .tt-row { color: var(--text-muted, #94a3b8); margin: 0.1rem 0; }
+#earth-tooltip .tt-row span { color: var(--text); }
+
+#earth-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem 1.2rem;
+  margin-top: 0.75rem;
+  font-size: 0.72rem;
+  color: var(--muted);
+}
+#earth-legend .leg-item { display: flex; align-items: center; gap: 0.4rem; }
+.leg-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+
+#earth-info-bar {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 0.75rem;
+  font-size: 0.72rem;
+  color: var(--muted);
+  flex-wrap: wrap;
+}
+#earth-info-bar strong { color: var(--teal); font-family: var(--font-main); font-size: 0.65rem; }
 </style>
 </head>
 <body>
@@ -723,6 +781,8 @@ function activateTab(index) {
   document.querySelectorAll(".tab-panel").forEach((p, i) => {
     p.classList.toggle("active", i === index);
   });
+  // Kick off Earth view if selected and not yet initialised
+  if (index === EARTH_TAB_INDEX && !earthInitialised) initEarthView();
 }
 
 async function retryAsteroid(id) {
@@ -741,16 +801,297 @@ async function retryAsteroid(id) {
   }
 }
 
-// Load all asteroids in parallel
+// ── Earth tab setup ────────────────────────────────────────────────────────
+const EARTH_TAB_INDEX = ASTEROIDS.length; // tab index 5
+let earthInitialised = false;
+let weeklyNEOs = [];
+
+// Add Earth tab button
+(function addEarthTab() {
+  const btn = document.createElement("button");
+  btn.className = "tab-btn";
+  btn.id = `tab-btn-${EARTH_TAB_INDEX}`;
+  btn.setAttribute("role", "tab");
+  btn.setAttribute("aria-selected", "false");
+  btn.setAttribute("aria-controls", `tab-panel-${EARTH_TAB_INDEX}`);
+  btn.innerHTML = "&#127759; Earth View";
+  btn.addEventListener("click", () => activateTab(EARTH_TAB_INDEX));
+  tabBar.appendChild(btn);
+
+  const panel = document.createElement("div");
+  panel.className = "tab-panel";
+  panel.id = `tab-panel-${EARTH_TAB_INDEX}`;
+  panel.setAttribute("role", "tabpanel");
+  panel.innerHTML = `
+    <div id="earth-info-bar">
+      <strong>3D EARTH &mdash; THIS WEEK'S NEAR EARTH OBJECTS</strong>
+      <span id="neo-count-label">Loading feed data...</span>
+    </div>
+    <div id="earth-container">
+      <canvas id="earth-canvas"></canvas>
+      <div id="earth-tooltip">
+        <div class="tt-name" id="tt-name"></div>
+        <div class="tt-row">Miss dist: <span id="tt-dist"></span></div>
+        <div class="tt-row">Velocity: <span id="tt-vel"></span></div>
+        <div class="tt-row">Diameter: <span id="tt-diam"></span></div>
+        <div class="tt-row">Date: <span id="tt-date"></span></div>
+      </div>
+    </div>
+    <div id="earth-legend">
+      <div class="leg-item"><div class="leg-dot" style="background:#ff1744;box-shadow:0 0 6px #ff1744"></div>Potentially Hazardous</div>
+      <div class="leg-item"><div class="leg-dot" style="background:#00e5ff;box-shadow:0 0 6px #00e5ff"></div>Non-Hazardous</div>
+      <div class="leg-item"><div class="leg-dot" style="background:rgba(255,255,255,0.25);border:1px solid rgba(255,255,255,0.2)"></div>Moon Orbit Ring (1 LD)</div>
+      <span style="color:var(--muted);font-size:0.68rem;margin-left:auto">Drag to rotate &bull; Scroll to zoom &bull; Hover asteroid for details</span>
+    </div>
+  `;
+  tabContent.appendChild(panel);
+})();
+
+// ── Three.js Earth scene ────────────────────────────────────────────────────
+function initEarthView() {
+  if (earthInitialised) return;
+  earthInitialised = true;
+
+  const container = document.getElementById("earth-container");
+  const canvas    = document.getElementById("earth-canvas");
+  const tooltip   = document.getElementById("earth-tooltip");
+
+  const W = container.clientWidth;
+  const H = container.clientHeight;
+
+  // Renderer
+  const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
+  renderer.setSize(W, H);
+  renderer.setPixelRatio(window.devicePixelRatio);
+
+  // Scene + camera
+  const scene  = new THREE.Scene();
+  const camera = new THREE.PerspectiveCamera(45, W / H, 0.1, 5000);
+  camera.position.set(0, 0, 22);
+
+  // Controls
+  const controls = new THREE.OrbitControls(camera, renderer.domElement);
+  controls.enableDamping = true;
+  controls.dampingFactor = 0.06;
+  controls.minDistance   = 5;
+  controls.maxDistance   = 500;
+
+  // Lighting
+  scene.add(new THREE.AmbientLight(0x334466, 1.2));
+  const sun = new THREE.DirectionalLight(0xffeedd, 2.0);
+  sun.position.set(80, 40, 60);
+  scene.add(sun);
+
+  // ── Earth ──
+  const earthGeo = new THREE.SphereGeometry(3, 64, 64);
+  // Procedural canvas texture — blue ocean + green/brown landmass-like noise
+  const texCanvas = document.createElement("canvas");
+  texCanvas.width = 512; texCanvas.height = 256;
+  const tc = texCanvas.getContext("2d");
+  // Ocean base
+  const ocean = tc.createLinearGradient(0, 0, 0, 256);
+  ocean.addColorStop(0,   "#0a2a6e");
+  ocean.addColorStop(0.5, "#1040a0");
+  ocean.addColorStop(1,   "#0a2a6e");
+  tc.fillStyle = ocean;
+  tc.fillRect(0, 0, 512, 256);
+  // Rough continent blobs
+  tc.fillStyle = "#2d6e2d";
+  const blobs = [
+    [60,80,40,60],[130,60,70,50],[100,120,50,40],[200,70,35,50],
+    [240,100,60,45],[320,80,55,40],[380,60,40,35],[420,110,50,40],
+    [60,160,45,35],[150,170,55,30],[280,155,60,40],[370,150,40,30],
+    [450,70,30,25],[180,130,35,30],[340,120,30,25]
+  ];
+  blobs.forEach(([x,y,w,h]) => {
+    tc.beginPath();
+    tc.ellipse(x, y, w, h, Math.random(), 0, Math.PI*2);
+    tc.fill();
+  });
+  // Ice caps
+  tc.fillStyle = "#ddeeff";
+  tc.fillRect(0, 0, 512, 18);
+  tc.fillRect(0, 238, 512, 18);
+  // Cloud wisps
+  tc.fillStyle = "rgba(255,255,255,0.18)";
+  [[80,40,120,12],[200,30,100,10],[300,50,90,8],[60,150,110,10],[250,140,130,9]].forEach(([x,y,w,h]) => {
+    tc.beginPath(); tc.ellipse(x,y,w,h,0,0,Math.PI*2); tc.fill();
+  });
+  const earthTex = new THREE.CanvasTexture(texCanvas);
+  const earthMat = new THREE.MeshPhongMaterial({ map: earthTex, shininess: 60, specular: new THREE.Color(0x224488) });
+  const earth = new THREE.Mesh(earthGeo, earthMat);
+  scene.add(earth);
+
+  // Atmosphere glow
+  const atmGeo = new THREE.SphereGeometry(3.18, 64, 64);
+  const atmMat = new THREE.MeshPhongMaterial({
+    color: 0x2266ff, transparent: true, opacity: 0.18, side: THREE.FrontSide, depthWrite: false
+  });
+  scene.add(new THREE.Mesh(atmGeo, atmMat));
+
+  // ── Moon orbit reference ring ──
+  const moonRingGeo = new THREE.RingGeometry(60.27, 60.5, 128);
+  const moonRingMat = new THREE.MeshBasicMaterial({ color: 0x334466, side: THREE.DoubleSide, transparent: true, opacity: 0.35 });
+  const moonRing = new THREE.Mesh(moonRingGeo, moonRingMat);
+  moonRing.rotation.x = Math.PI / 2;
+  scene.add(moonRing);
+  // Label "1 LD" near ring
+  const ldSprite = makeTextSprite("1 LD (Moon Orbit)", { color: "#334466", size: 18 });
+  ldSprite.position.set(62, 0, 0);
+  ldSprite.scale.set(12, 3, 1);
+  scene.add(ldSprite);
+
+  // ── Place asteroids ──
+  const asteroidMeshes = [];
+  const raycaster = new THREE.Raycaster();
+  raycaster.params.Points = { threshold: 0.5 };
+  const mouse = new THREE.Vector2(-9999, -9999);
+
+  function placeAsteroids(neos) {
+    // Remove old
+    asteroidMeshes.forEach(m => scene.remove(m));
+    asteroidMeshes.length = 0;
+
+    neos.forEach((neo, idx) => {
+      const isPHA = neo.is_potentially_hazardous_asteroid;
+      const ldDist = parseFloat(neo._thisWeekApproach?.miss_distance?.lunar || "30");
+      // Logarithmic scale: Earth radius=3, Moon ring=60.27
+      // map 0.05 LD → 5 units,  1 LD → 60.27 units,  100 LD → 300 units
+      const sceneDist = Math.max(5, Math.log1p(ldDist) / Math.log1p(1) * 60.27);
+
+      // Spread evenly around a sphere shell at sceneDist
+      const phi   = Math.acos(-1 + (2 * idx) / Math.max(neos.length, 1));
+      const theta = Math.sqrt(neos.length * Math.PI) * phi + (idx * 2.618);
+      const x = sceneDist * Math.sin(phi) * Math.cos(theta);
+      const y = sceneDist * Math.sin(phi) * Math.sin(theta) * 0.4; // flatten a bit
+      const z = sceneDist * Math.cos(phi);
+
+      const color = isPHA ? 0xff1744 : 0x00e5ff;
+      // Size based on estimated diameter (log scale, min 0.15, max 1.2)
+      const maxDiam = parseFloat(neo.estimated_diameter?.kilometers?.estimated_diameter_max || 0.1);
+      const sphereR = Math.min(1.2, Math.max(0.15, Math.log1p(maxDiam) * 0.4));
+
+      const geo = new THREE.SphereGeometry(sphereR, 12, 12);
+      const mat = new THREE.MeshPhongMaterial({ color, emissive: color, emissiveIntensity: 0.6 });
+      const mesh = new THREE.Mesh(geo, mat);
+      mesh.position.set(x, y, z);
+      mesh.userData = neo;
+      scene.add(mesh);
+      asteroidMeshes.push(mesh);
+
+      // Glow sprite
+      const glow = makeGlowSprite(isPHA ? "#ff1744" : "#00e5ff");
+      glow.position.set(x, y, z);
+      glow.scale.set(sphereR * 5, sphereR * 5, 1);
+      scene.add(glow);
+      asteroidMeshes.push(glow);
+
+      // Dashed line from Earth to asteroid
+      const points = [new THREE.Vector3(0,0,0), new THREE.Vector3(x,y,z)];
+      const lineGeo = new THREE.BufferGeometry().setFromPoints(points);
+      const lineMat = new THREE.LineBasicMaterial({ color: isPHA ? 0xff174420 : 0x00e5ff15, transparent: true, opacity: 0.12 });
+      const line = new THREE.Line(lineGeo, lineMat);
+      scene.add(line);
+      asteroidMeshes.push(line);
+    });
+  }
+
+  // Hover detection
+  container.addEventListener("mousemove", (e) => {
+    const rect = container.getBoundingClientRect();
+    mouse.x =  ((e.clientX - rect.left) / rect.width)  * 2 - 1;
+    mouse.y = -((e.clientY - rect.top)  / rect.height) * 2 + 1;
+
+    raycaster.setFromCamera(mouse, camera);
+    const hits = raycaster.intersectObjects(asteroidMeshes.filter(m => m.isMesh && m.userData.name));
+    if (hits.length) {
+      const neo = hits[0].object.userData;
+      const a = neo._thisWeekApproach;
+      document.getElementById("tt-name").textContent  = neo.name;
+      document.getElementById("tt-dist").textContent  = a ? `${parseFloat(a.miss_distance.lunar).toFixed(2)} LD (${Number(parseFloat(a.miss_distance.kilometers)).toLocaleString()} km)` : "—";
+      document.getElementById("tt-vel").textContent   = a ? `${parseFloat(a.relative_velocity.kilometers_per_second).toFixed(2)} km/s` : "—";
+      document.getElementById("tt-diam").textContent  = neo.estimated_diameter?.kilometers ? `${parseFloat(neo.estimated_diameter.kilometers.estimated_diameter_min).toFixed(3)}–${parseFloat(neo.estimated_diameter.kilometers.estimated_diameter_max).toFixed(3)} km` : "—";
+      document.getElementById("tt-date").textContent  = a?.close_approach_date || "—";
+      tooltip.style.display = "block";
+      tooltip.style.left = (e.clientX - rect.left + 14) + "px";
+      tooltip.style.top  = (e.clientY - rect.top  - 10) + "px";
+    } else {
+      tooltip.style.display = "none";
+    }
+  });
+  container.addEventListener("mouseleave", () => { tooltip.style.display = "none"; });
+
+  // Populate from already-fetched weeklyNEOs if ready
+  if (weeklyNEOs.length) placeAsteroids(weeklyNEOs);
+  else window._earthPlaceAsteroids = placeAsteroids;
+
+  // Resize
+  window.addEventListener("resize", () => {
+    const w = container.clientWidth, h = container.clientHeight;
+    camera.aspect = w / h;
+    camera.updateProjectionMatrix();
+    renderer.setSize(w, h);
+  });
+
+  // Animation loop
+  (function animate() {
+    requestAnimationFrame(animate);
+    earth.rotation.y += 0.001;
+    controls.update();
+    renderer.render(scene, camera);
+  })();
+}
+
+// ── Sprite helpers ──────────────────────────────────────────────────────────
+function makeTextSprite(text, opts = {}) {
+  const c = document.createElement("canvas");
+  c.width = 256; c.height = 64;
+  const cx = c.getContext("2d");
+  cx.font = `${opts.size || 16}px Share Tech Mono`;
+  cx.fillStyle = opts.color || "#00e5ff";
+  cx.fillText(text, 8, 44);
+  const tex = new THREE.CanvasTexture(c);
+  const mat = new THREE.SpriteMaterial({ map: tex, transparent: true, depthWrite: false });
+  return new THREE.Sprite(mat);
+}
+
+function makeGlowSprite(color) {
+  const c = document.createElement("canvas");
+  c.width = 64; c.height = 64;
+  const cx = c.getContext("2d");
+  const g = cx.createRadialGradient(32, 32, 0, 32, 32, 32);
+  g.addColorStop(0,   color + "cc");
+  g.addColorStop(0.4, color + "44");
+  g.addColorStop(1,   "transparent");
+  cx.fillStyle = g;
+  cx.fillRect(0, 0, 64, 64);
+  const tex = new THREE.CanvasTexture(c);
+  const mat = new THREE.SpriteMaterial({ map: tex, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false });
+  return new THREE.Sprite(mat);
+}
+
+// ── Load all asteroids in parallel ─────────────────────────────────────────
 (async function init() {
-  const results = await Promise.allSettled(ASTEROIDS.map(a => fetchAsteroid(a.id)));
+  // Dates for this week's feed
+  const today = new Date();
+  const end   = new Date(today);
+  end.setDate(today.getDate() + 7);
+  const pad = d => d.toISOString().split("T")[0];
+
+  const [asteroidResults, feedResult] = await Promise.all([
+    Promise.allSettled(ASTEROIDS.map(a => fetchAsteroid(a.id))),
+    fetch(`https://api.nasa.gov/neo/rest/v1/feed?start_date=${pad(today)}&end_date=${pad(end)}&api_key=${API_KEY}`)
+      .then(r => r.ok ? r.json() : Promise.reject(new Error(`Feed HTTP ${r.status}`)))
+      .catch(e => ({ error: e.message }))
+  ]);
 
   // Hide loading overlay
   const overlay = document.getElementById("loading-overlay");
   overlay.classList.add("fade-out");
   setTimeout(() => overlay.remove(), 500);
 
-  results.forEach((result, i) => {
+  // Render asteroid tabs
+  asteroidResults.forEach((result, i) => {
     const panel = document.getElementById(`tab-panel-${i}`);
     const btn   = document.getElementById(`tab-btn-${i}`);
     if (result.status === "fulfilled") {
@@ -761,6 +1102,30 @@ async function retryAsteroid(id) {
       panel.innerHTML = renderError(ASTEROIDS[i].name, result.reason.message, ASTEROIDS[i].id);
     }
   });
+
+  // Process NEO feed for Earth view
+  const countLabel = document.getElementById("neo-count-label");
+  if (feedResult && !feedResult.error) {
+    const allDays = Object.values(feedResult.near_earth_objects || {});
+    const allNEOs = allDays.flat();
+    // Attach the approach for this week to each NEO
+    allNEOs.forEach(neo => {
+      // The feed already scopes approaches to the requested window
+      neo._thisWeekApproach = (neo.close_approach_data || [])[0] || null;
+    });
+    // Sort by miss distance ascending
+    allNEOs.sort((a, b) => {
+      const da = parseFloat(a._thisWeekApproach?.miss_distance?.lunar || 999);
+      const db = parseFloat(b._thisWeekApproach?.miss_distance?.lunar || 999);
+      return da - db;
+    });
+    weeklyNEOs = allNEOs;
+    const phaCount = allNEOs.filter(n => n.is_potentially_hazardous_asteroid).length;
+    if (countLabel) countLabel.textContent = `${allNEOs.length} NEOs this week · ${phaCount} potentially hazardous`;
+    if (window._earthPlaceAsteroids) window._earthPlaceAsteroids(allNEOs);
+  } else {
+    if (countLabel) countLabel.textContent = feedResult?.error ? `Feed error: ${feedResult.error}` : "No data";
+  }
 })();
 </script>
 </body>
