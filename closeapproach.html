@@ -1,0 +1,767 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Close Approach — NASA NEO Dashboard</title>
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;600;700;900&family=Share+Tech+Mono&display=swap" rel="stylesheet"/>
+<style>
+:root {
+  --bg: #020916;
+  --bg2: #060d1f;
+  --purple: #6c3baa;
+  --blue: #1e6fff;
+  --teal: #00e5ff;
+  --magenta: #e040fb;
+  --amber: #ffab00;
+  --red: #ff1744;
+  --green: #00e676;
+  --glass: rgba(6,13,31,0.75);
+  --border: rgba(0,229,255,0.18);
+  --text: #cde0ff;
+  --muted: #5a7a9a;
+  --font-main: 'Orbitron', sans-serif;
+  --font-mono: 'Share Tech Mono', monospace;
+}
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+html, body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-mono);
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+/* ── Star field ─────────────────────────────────────── */
+#starfield {
+  position: fixed; inset: 0; z-index: 0; pointer-events: none;
+}
+
+/* ── Zodiac SVG layer ───────────────────────────────── */
+#zodiac-layer {
+  position: fixed; inset: 0; z-index: 1; pointer-events: none;
+  opacity: 0.13;
+  animation: zodiac-drift 120s linear infinite;
+}
+@keyframes zodiac-drift {
+  from { transform: rotate(0deg) scale(1.1); }
+  to   { transform: rotate(360deg) scale(1.1); }
+}
+
+/* ── App shell ──────────────────────────────────────── */
+#app {
+  position: relative; z-index: 2;
+  max-width: 1300px;
+  margin: 0 auto;
+  padding: 0 1.5rem 3rem;
+}
+
+/* ── Header ─────────────────────────────────────────── */
+header {
+  text-align: center;
+  padding: 2.5rem 0 1.5rem;
+}
+header h1 {
+  font-family: var(--font-main);
+  font-size: clamp(1.4rem, 4vw, 2.6rem);
+  font-weight: 900;
+  letter-spacing: 0.12em;
+  background: linear-gradient(90deg, var(--teal), var(--magenta), var(--blue));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  text-shadow: none;
+  margin-bottom: 0.4rem;
+}
+header p {
+  color: var(--muted);
+  font-size: 0.8rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+/* ── Tab bar ────────────────────────────────────────── */
+#tab-bar {
+  display: flex;
+  gap: 0.4rem;
+  margin-bottom: 1.5rem;
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 0;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+#tab-bar::-webkit-scrollbar { display: none; }
+
+.tab-btn {
+  font-family: var(--font-main);
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid transparent;
+  padding: 0.75rem 1.1rem 0.65rem;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: color 0.2s, border-color 0.2s, text-shadow 0.2s;
+  position: relative;
+  top: 1px;
+}
+.tab-btn:hover { color: var(--teal); }
+.tab-btn.active {
+  color: var(--teal);
+  border-bottom-color: var(--teal);
+  text-shadow: 0 0 12px var(--teal);
+}
+.tab-btn .pha-icon { color: var(--red); margin-left: 0.3rem; font-size: 0.75rem; }
+
+/* ── Loading overlay ────────────────────────────────── */
+#loading-overlay {
+  position: fixed; inset: 0; z-index: 100;
+  background: var(--bg);
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  gap: 1.5rem;
+  transition: opacity 0.5s;
+}
+#loading-overlay.fade-out { opacity: 0; pointer-events: none; }
+
+.orbital-spinner {
+  width: 80px; height: 80px;
+  border-radius: 50%;
+  border: 2px solid transparent;
+  border-top-color: var(--teal);
+  border-right-color: var(--magenta);
+  animation: spin 1s linear infinite;
+  box-shadow: 0 0 20px var(--teal), inset 0 0 20px rgba(0,229,255,0.1);
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.loading-text {
+  font-family: var(--font-main);
+  font-size: 0.85rem;
+  letter-spacing: 0.2em;
+  color: var(--teal);
+  text-shadow: 0 0 10px var(--teal);
+  text-transform: uppercase;
+}
+
+/* ── Tab panels ─────────────────────────────────────── */
+.tab-panel { display: none; animation: tab-fade 0.3s ease; }
+.tab-panel.active { display: block; }
+@keyframes tab-fade { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+
+/* ── Skeleton ───────────────────────────────────────── */
+.skeleton {
+  background: linear-gradient(90deg, var(--bg2) 25%, rgba(0,229,255,0.05) 50%, var(--bg2) 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+  border-radius: 8px;
+}
+@keyframes shimmer { to { background-position: -200% 0; } }
+
+/* ── Glass card ─────────────────────────────────────── */
+.glass {
+  background: var(--glass);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+/* ── Metric cards ───────────────────────────────────── */
+.metrics-row {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 1rem;
+  margin-bottom: 1.25rem;
+}
+@media (max-width: 900px) { .metrics-row { grid-template-columns: repeat(2, 1fr); } }
+@media (max-width: 500px) { .metrics-row { grid-template-columns: 1fr 1fr; } }
+
+.metric-card {
+  padding: 1.25rem 1rem;
+  text-align: center;
+  position: relative;
+  overflow: hidden;
+}
+.metric-card::before {
+  content: '';
+  position: absolute; inset: 0;
+  border-radius: 12px;
+  opacity: 0.12;
+}
+.metric-card.c-teal   { border-color: var(--teal);    box-shadow: 0 0 18px rgba(0,229,255,0.15); }
+.metric-card.c-teal::before { background: var(--teal); }
+.metric-card.c-magenta{ border-color: var(--magenta); box-shadow: 0 0 18px rgba(224,64,251,0.15); }
+.metric-card.c-magenta::before { background: var(--magenta); }
+.metric-card.c-blue   { border-color: var(--blue);    box-shadow: 0 0 18px rgba(30,111,255,0.15); }
+.metric-card.c-blue::before { background: var(--blue); }
+.metric-card.c-purple { border-color: var(--purple);  box-shadow: 0 0 18px rgba(108,59,170,0.2); }
+.metric-card.c-purple::before { background: var(--purple); }
+
+.metric-label {
+  font-family: var(--font-main);
+  font-size: 0.55rem;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-bottom: 0.5rem;
+}
+.metric-value {
+  font-family: var(--font-main);
+  font-size: clamp(1rem, 2.5vw, 1.5rem);
+  font-weight: 700;
+  line-height: 1.1;
+}
+.metric-card.c-teal    .metric-value { color: var(--teal); text-shadow: 0 0 10px var(--teal); }
+.metric-card.c-magenta .metric-value { color: var(--magenta); text-shadow: 0 0 10px var(--magenta); }
+.metric-card.c-blue    .metric-value { color: var(--blue); text-shadow: 0 0 10px var(--blue); }
+.metric-card.c-purple  .metric-value { color: #b47fff; text-shadow: 0 0 10px var(--purple); }
+.metric-sub { font-size: 0.65rem; color: var(--muted); margin-top: 0.3rem; }
+
+/* ── Info + orbital row ─────────────────────────────── */
+.info-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+  margin-bottom: 1.25rem;
+}
+@media (max-width: 700px) { .info-row { grid-template-columns: 1fr; } }
+
+.info-panel, .orbital-panel {
+  padding: 1.25rem 1.5rem;
+}
+.panel-title {
+  font-family: var(--font-main);
+  font-size: 0.65rem;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--teal);
+  text-shadow: 0 0 8px var(--teal);
+  margin-bottom: 1rem;
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 0.5rem;
+}
+
+.info-grid {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 0.4rem 1rem;
+  font-size: 0.78rem;
+}
+.info-key { color: var(--muted); white-space: nowrap; }
+.info-val { color: var(--text); word-break: break-word; }
+.info-val a { color: var(--blue); text-decoration: none; }
+.info-val a:hover { text-decoration: underline; }
+
+/* ── Badges ─────────────────────────────────────────── */
+.badge {
+  display: inline-block;
+  font-family: var(--font-main);
+  font-size: 0.55rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  padding: 0.2rem 0.6rem;
+  border-radius: 20px;
+  text-transform: uppercase;
+}
+.badge-pha-true {
+  background: rgba(255,23,68,0.15);
+  border: 1px solid var(--red);
+  color: var(--red);
+  box-shadow: 0 0 8px rgba(255,23,68,0.4);
+  animation: pha-pulse 2s ease-in-out infinite;
+}
+@keyframes pha-pulse {
+  0%,100% { box-shadow: 0 0 6px rgba(255,23,68,0.3); }
+  50%      { box-shadow: 0 0 14px rgba(255,23,68,0.7); }
+}
+.badge-pha-false {
+  background: rgba(0,230,118,0.1);
+  border: 1px solid var(--green);
+  color: var(--green);
+}
+.badge-sentry-true {
+  background: rgba(255,171,0,0.1);
+  border: 1px solid var(--amber);
+  color: var(--amber);
+  box-shadow: 0 0 8px rgba(255,171,0,0.3);
+}
+.badge-sentry-false {
+  background: rgba(90,122,154,0.1);
+  border: 1px solid var(--muted);
+  color: var(--muted);
+}
+
+/* ── Close approach table ───────────────────────────── */
+.table-panel { padding: 1.25rem 1.5rem; }
+.table-wrap {
+  overflow-x: auto;
+  max-height: 360px;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--border) transparent;
+}
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.72rem;
+  min-width: 680px;
+}
+thead th {
+  font-family: var(--font-main);
+  font-size: 0.55rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--teal);
+  padding: 0.6rem 0.75rem;
+  text-align: left;
+  border-bottom: 1px solid var(--border);
+  position: sticky; top: 0;
+  background: var(--bg2);
+}
+tbody tr:nth-child(odd)  { background: rgba(0,0,0,0.25); }
+tbody tr:nth-child(even) { background: rgba(0,229,255,0.02); }
+tbody tr:hover { background: rgba(0,229,255,0.06); }
+tbody td { padding: 0.5rem 0.75rem; color: var(--text); border-bottom: 1px solid rgba(0,229,255,0.05); }
+
+/* ── Error card ─────────────────────────────────────── */
+.error-card {
+  padding: 2rem;
+  text-align: center;
+  border-color: rgba(255,23,68,0.3);
+}
+.error-card h3 {
+  font-family: var(--font-main);
+  color: var(--red);
+  margin-bottom: 0.5rem;
+  font-size: 0.9rem;
+  letter-spacing: 0.1em;
+}
+.error-card p { color: var(--muted); font-size: 0.8rem; margin-bottom: 1rem; }
+.retry-btn {
+  font-family: var(--font-main);
+  font-size: 0.7rem;
+  letter-spacing: 0.1em;
+  background: transparent;
+  border: 1px solid var(--red);
+  color: var(--red);
+  padding: 0.5rem 1.2rem;
+  border-radius: 6px;
+  cursor: pointer;
+  text-transform: uppercase;
+  transition: background 0.2s;
+}
+.retry-btn:hover { background: rgba(255,23,68,0.15); }
+</style>
+</head>
+<body>
+
+<!-- Loading overlay -->
+<div id="loading-overlay">
+  <div class="orbital-spinner"></div>
+  <div class="loading-text">Fetching NEO data...</div>
+</div>
+
+<!-- Star field canvas -->
+<canvas id="starfield"></canvas>
+
+<!-- Zodiac constellation SVG layer -->
+<svg id="zodiac-layer" viewBox="0 0 1400 900" preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg">
+  <!-- Each constellation: dots + lines, spread across the canvas -->
+  <!-- ARIES -->
+  <g fill="#00e5ff" stroke="#00e5ff" stroke-width="0.8" opacity="0.9">
+    <line x1="60" y1="80" x2="80" y2="70"/><line x1="80" y1="70" x2="100" y2="75"/><line x1="100" y1="75" x2="115" y2="65"/>
+    <circle cx="60" cy="80" r="2.5"/><circle cx="80" cy="70" r="1.8"/><circle cx="100" cy="75" r="2"/><circle cx="115" cy="65" r="2.5"/>
+    <text x="62" y="100" font-size="8" fill="#00e5ff" font-family="Share Tech Mono" letter-spacing="2" opacity="0.7">ARIES</text>
+  </g>
+  <!-- TAURUS -->
+  <g fill="#e040fb" stroke="#e040fb" stroke-width="0.8" opacity="0.9">
+    <line x1="210" y1="55" x2="235" y2="70"/><line x1="235" y1="70" x2="260" y2="65"/><line x1="260" y1="65" x2="280" y2="50"/><line x1="260" y1="65" x2="265" y2="85"/><line x1="235" y1="70" x2="230" y2="90"/>
+    <circle cx="210" cy="55" r="2.5"/><circle cx="235" cy="70" r="2"/><circle cx="260" cy="65" r="2.5"/><circle cx="280" cy="50" r="1.8"/><circle cx="265" cy="85" r="1.8"/><circle cx="230" cy="90" r="1.8"/>
+    <text x="225" y="108" font-size="8" fill="#e040fb" font-family="Share Tech Mono" letter-spacing="2" opacity="0.7">TAURUS</text>
+  </g>
+  <!-- GEMINI -->
+  <g fill="#6c3baa" stroke="#6c3baa" stroke-width="0.8" opacity="0.9">
+    <line x1="400" y1="40" x2="410" y2="75"/><line x1="410" y1="75" x2="415" y2="110"/><line x1="425" y1="40" x2="432" y2="75"/><line x1="432" y1="75" x2="435" y2="110"/><line x1="400" y1="40" x2="425" y2="40"/><line x1="410" y1="75" x2="432" y2="75"/>
+    <circle cx="400" cy="40" r="2.5"/><circle cx="410" cy="75" r="1.8"/><circle cx="415" cy="110" r="2"/><circle cx="425" cy="40" r="2.5"/><circle cx="432" cy="75" r="1.8"/><circle cx="435" cy="110" r="2"/>
+    <text x="398" y="128" font-size="8" fill="#6c3baa" font-family="Share Tech Mono" letter-spacing="2" opacity="0.7">GEMINI</text>
+  </g>
+  <!-- CANCER -->
+  <g fill="#1e6fff" stroke="#1e6fff" stroke-width="0.8" opacity="0.9">
+    <line x1="580" y1="60" x2="600" y2="80"/><line x1="600" y1="80" x2="620" y2="70"/><line x1="600" y1="80" x2="598" y2="105"/>
+    <circle cx="580" cy="60" r="2"/><circle cx="600" cy="80" r="2.5"/><circle cx="620" cy="70" r="1.8"/><circle cx="598" cy="105" r="2"/>
+    <text x="578" y="122" font-size="8" fill="#1e6fff" font-family="Share Tech Mono" letter-spacing="2" opacity="0.7">CANCER</text>
+  </g>
+  <!-- LEO -->
+  <g fill="#ffab00" stroke="#ffab00" stroke-width="0.8" opacity="0.9">
+    <line x1="740" y1="45" x2="760" y2="65"/><line x1="760" y1="65" x2="780" y2="60"/><line x1="780" y1="60" x2="800" y2="75"/><line x1="800" y1="75" x2="810" y2="100"/><line x1="780" y1="60" x2="775" y2="85"/><line x1="740" y1="45" x2="738" y2="70"/>
+    <circle cx="740" cy="45" r="2.5"/><circle cx="760" cy="65" r="2"/><circle cx="780" cy="60" r="2.5"/><circle cx="800" cy="75" r="1.8"/><circle cx="810" cy="100" r="2"/><circle cx="775" cy="85" r="1.8"/><circle cx="738" cy="70" r="1.8"/>
+    <text x="748" y="118" font-size="8" fill="#ffab00" font-family="Share Tech Mono" letter-spacing="2" opacity="0.7">LEO</text>
+  </g>
+  <!-- VIRGO -->
+  <g fill="#00e5ff" stroke="#00e5ff" stroke-width="0.8" opacity="0.9">
+    <line x1="960" y1="50" x2="980" y2="75"/><line x1="980" y1="75" x2="995" y2="100"/><line x1="995" y1="100" x2="1010" y2="80"/><line x1="1010" y1="80" x2="1000" y2="55"/><line x1="980" y1="75" x2="1010" y2="80"/>
+    <circle cx="960" cy="50" r="2.5"/><circle cx="980" cy="75" r="2"/><circle cx="995" cy="100" r="2.5"/><circle cx="1010" cy="80" r="1.8"/><circle cx="1000" cy="55" r="2"/>
+    <text x="962" y="118" font-size="8" fill="#00e5ff" font-family="Share Tech Mono" letter-spacing="2" opacity="0.7">VIRGO</text>
+  </g>
+  <!-- LIBRA -->
+  <g fill="#e040fb" stroke="#e040fb" stroke-width="0.8" opacity="0.9">
+    <line x1="1150" y1="55" x2="1180" y2="55"/><line x1="1165" y1="55" x2="1165" y2="90"/><line x1="1148" y1="90" x2="1182" y2="90"/>
+    <circle cx="1150" cy="55" r="2"/><circle cx="1180" cy="55" r="2"/><circle cx="1165" cy="55" r="1.5"/><circle cx="1165" cy="90" r="2.5"/><circle cx="1148" cy="90" r="1.8"/><circle cx="1182" cy="90" r="1.8"/>
+    <text x="1148" y="108" font-size="8" fill="#e040fb" font-family="Share Tech Mono" letter-spacing="2" opacity="0.7">LIBRA</text>
+  </g>
+  <!-- SCORPIUS -->
+  <g fill="#6c3baa" stroke="#6c3baa" stroke-width="0.8" opacity="0.9">
+    <line x1="1280" y1="60" x2="1300" y2="80"/><line x1="1300" y1="80" x2="1320" y2="100"/><line x1="1320" y1="100" x2="1340" y2="90"/><line x1="1340" y1="90" x2="1355" y2="75"/><line x1="1355" y1="75" x2="1365" y2="55"/>
+    <circle cx="1280" cy="60" r="2.5"/><circle cx="1300" cy="80" r="2"/><circle cx="1320" cy="100" r="2.5"/><circle cx="1340" cy="90" r="1.8"/><circle cx="1355" cy="75" r="2"/><circle cx="1365" cy="55" r="2"/>
+    <text x="1278" y="118" font-size="8" fill="#6c3baa" font-family="Share Tech Mono" letter-spacing="2" opacity="0.7">SCORPIUS</text>
+  </g>
+  <!-- SAGITTARIUS -->
+  <g fill="#1e6fff" stroke="#1e6fff" stroke-width="0.8" opacity="0.9">
+    <line x1="100" y1="400" x2="130" y2="380"/><line x1="130" y1="380" x2="155" y2="400"/><line x1="155" y1="400" x2="145" y2="430"/><line x1="130" y1="380" x2="125" y2="420"/>
+    <circle cx="100" cy="400" r="2.5"/><circle cx="130" cy="380" r="2"/><circle cx="155" cy="400" r="2.5"/><circle cx="145" cy="430" r="1.8"/><circle cx="125" cy="420" r="2"/>
+    <text x="95" y="448" font-size="8" fill="#1e6fff" font-family="Share Tech Mono" letter-spacing="2" opacity="0.7">SAGITTARIUS</text>
+  </g>
+  <!-- CAPRICORNUS -->
+  <g fill="#00e5ff" stroke="#00e5ff" stroke-width="0.8" opacity="0.9">
+    <line x1="380" y1="420" x2="410" y2="410"/><line x1="410" y1="410" x2="440" y2="420"/><line x1="440" y1="420" x2="450" y2="450"/><line x1="380" y1="420" x2="385" y2="450"/>
+    <circle cx="380" cy="420" r="2.5"/><circle cx="410" cy="410" r="2"/><circle cx="440" cy="420" r="2.5"/><circle cx="450" cy="450" r="1.8"/><circle cx="385" cy="450" r="1.8"/>
+    <text x="372" y="468" font-size="8" fill="#00e5ff" font-family="Share Tech Mono" letter-spacing="2" opacity="0.7">CAPRICORNUS</text>
+  </g>
+  <!-- AQUARIUS -->
+  <g fill="#ffab00" stroke="#ffab00" stroke-width="0.8" opacity="0.9">
+    <line x1="700" y1="750" x2="730" y2="740"/><line x1="730" y1="740" x2="760" y2="755"/><line x1="760" y1="755" x2="790" y2="745"/><line x1="720" y1="770" x2="750" y2="760"/><line x1="750" y1="760" x2="780" y2="775"/>
+    <circle cx="700" cy="750" r="2"/><circle cx="730" cy="740" r="2.5"/><circle cx="760" cy="755" r="2"/><circle cx="790" cy="745" r="1.8"/><circle cx="720" cy="770" r="1.8"/><circle cx="750" cy="760" r="2"/><circle cx="780" cy="775" r="1.8"/>
+    <text x="718" y="793" font-size="8" fill="#ffab00" font-family="Share Tech Mono" letter-spacing="2" opacity="0.7">AQUARIUS</text>
+  </g>
+  <!-- PISCES -->
+  <g fill="#e040fb" stroke="#e040fb" stroke-width="0.8" opacity="0.9">
+    <line x1="1050" y1="720" x2="1070" y2="740"/><line x1="1070" y1="740" x2="1090" y2="720"/><line x1="1070" y1="740" x2="1110" y2="740"/><line x1="1110" y1="740" x2="1130" y2="720"/><line x1="1110" y1="740" x2="1130" y2="760"/>
+    <circle cx="1050" cy="720" r="2"/><circle cx="1070" cy="740" r="2.5"/><circle cx="1090" cy="720" r="1.8"/><circle cx="1110" cy="740" r="2.5"/><circle cx="1130" cy="720" r="1.8"/><circle cx="1130" cy="760" r="1.8"/>
+    <text x="1058" y="778" font-size="8" fill="#e040fb" font-family="Share Tech Mono" letter-spacing="2" opacity="0.7">PISCES</text>
+  </g>
+</svg>
+
+<div id="app">
+  <header>
+    <h1>&#9654; CLOSE APPROACH</h1>
+    <p>NASA Near Earth Object Dashboard &mdash; Live Data from NeoWs API</p>
+  </header>
+
+  <div id="tab-bar" role="tablist"></div>
+  <div id="tab-content"></div>
+</div>
+
+<script>
+// ── Config ─────────────────────────────────────────────────────────────────
+const API_KEY = "fcFgJjLwLGlOYwCagaTgyABuPUo3grtAbdLdQl7t";
+
+const ASTEROIDS = [
+  { id: "2000433", name: "433 Eros" },
+  { id: "2099942", name: "99942 Apophis" },
+  { id: "2001036", name: "1036 Ganymed" },
+  { id: "2003122", name: "3122 Florence" },
+  { id: "2101955", name: "101955 Bennu" },
+];
+
+const BASE = "https://api.nasa.gov/neo/rest/v1/neo";
+
+// ── Star field ─────────────────────────────────────────────────────────────
+(function initStars() {
+  const canvas = document.getElementById("starfield");
+  const ctx = canvas.getContext("2d");
+  let stars = [];
+
+  function resize() {
+    canvas.width  = window.innerWidth;
+    canvas.height = window.innerHeight;
+    stars = Array.from({ length: 220 }, () => ({
+      x: Math.random() * canvas.width,
+      y: Math.random() * canvas.height,
+      r: Math.random() * 1.4 + 0.3,
+      a: Math.random(),
+      speed: Math.random() * 0.008 + 0.002,
+      phase: Math.random() * Math.PI * 2,
+    }));
+  }
+
+  function draw() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    const t = Date.now() / 1000;
+    stars.forEach(s => {
+      const alpha = 0.4 + 0.5 * Math.sin(t * s.speed * 20 + s.phase);
+      ctx.beginPath();
+      ctx.arc(s.x, s.y, s.r, 0, Math.PI * 2);
+      ctx.fillStyle = `rgba(205,224,255,${alpha})`;
+      ctx.fill();
+    });
+    requestAnimationFrame(draw);
+  }
+
+  resize();
+  window.addEventListener("resize", resize);
+  draw();
+})();
+
+// ── Fetch ──────────────────────────────────────────────────────────────────
+async function fetchAsteroid(id) {
+  const res = await fetch(`${BASE}/${id}?api_key=${API_KEY}`);
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  return res.json();
+}
+
+// ── Helpers ────────────────────────────────────────────────────────────────
+function fmt(n, decimals = 2) {
+  if (n === null || n === undefined) return "—";
+  const num = parseFloat(n);
+  return isNaN(num) ? "—" : num.toLocaleString("en-US", { maximumFractionDigits: decimals });
+}
+
+function closestApproach(approaches) {
+  if (!approaches.length) return null;
+  return approaches.reduce((a, b) =>
+    parseFloat(a.miss_distance.kilometers) < parseFloat(b.miss_distance.kilometers) ? a : b
+  );
+}
+
+function fastestApproach(approaches) {
+  if (!approaches.length) return null;
+  return approaches.reduce((a, b) =>
+    parseFloat(a.relative_velocity.kilometers_per_second) > parseFloat(b.relative_velocity.kilometers_per_second) ? a : b
+  );
+}
+
+// ── Render ─────────────────────────────────────────────────────────────────
+function renderPanel(data) {
+  const approaches = data.close_approach_data || [];
+  const od = data.orbital_data || {};
+  const est = data.estimated_diameter?.kilometers || {};
+  const isPHA = data.is_potentially_hazardous_asteroid;
+  const isSentry = data.is_sentry_object;
+
+  const closest = closestApproach(approaches);
+  const fastest = fastestApproach(approaches);
+
+  const closestKm = closest ? fmt(parseFloat(closest.miss_distance.kilometers), 0) + " km" : "—";
+  const fastestKms = fastest ? fmt(parseFloat(fastest.relative_velocity.kilometers_per_second), 2) + " km/s" : "—";
+  const maxDiam = est.estimated_diameter_max ? fmt(est.estimated_diameter_max, 3) + " km" : "—";
+
+  const phaBadge = isPHA
+    ? `<span class="badge badge-pha-true">&#9888; Hazardous</span>`
+    : `<span class="badge badge-pha-false">&#10003; Non-Hazardous</span>`;
+  const sentryBadge = isSentry
+    ? `<span class="badge badge-sentry-true">&#9888; Sentry Object</span>`
+    : `<span class="badge badge-sentry-false">Not on Sentry List</span>`;
+
+  const oc = od.orbit_class || {};
+  const jplUrl = data.nasa_jpl_url || "#";
+
+  // Table rows
+  const rows = approaches.map(a => `
+    <tr>
+      <td>${a.close_approach_date}</td>
+      <td>${fmt(parseFloat(a.relative_velocity.kilometers_per_second), 3)}</td>
+      <td>${fmt(parseFloat(a.relative_velocity.kilometers_per_hour), 0)}</td>
+      <td>${fmt(parseFloat(a.miss_distance.kilometers), 0)}</td>
+      <td>${fmt(parseFloat(a.miss_distance.lunar), 2)}</td>
+      <td>${fmt(parseFloat(a.miss_distance.astronomical), 5)}</td>
+      <td>${a.orbiting_body}</td>
+    </tr>
+  `).join("");
+
+  return `
+    <div class="metrics-row">
+      <div class="glass metric-card c-teal">
+        <div class="metric-label">Closest Approach</div>
+        <div class="metric-value">${closestKm.split(" ")[0]}</div>
+        <div class="metric-sub">km miss distance</div>
+      </div>
+      <div class="glass metric-card c-magenta">
+        <div class="metric-label">Fastest Velocity</div>
+        <div class="metric-value">${fastestKms}</div>
+        <div class="metric-sub">relative velocity</div>
+      </div>
+      <div class="glass metric-card c-blue">
+        <div class="metric-label">Total Approaches</div>
+        <div class="metric-value">${approaches.length}</div>
+        <div class="metric-sub">recorded encounters</div>
+      </div>
+      <div class="glass metric-card c-purple">
+        <div class="metric-label">Max Diameter</div>
+        <div class="metric-value">${maxDiam}</div>
+        <div class="metric-sub">estimated (km)</div>
+      </div>
+    </div>
+
+    <div class="info-row">
+      <div class="glass info-panel">
+        <div class="panel-title">Asteroid Information</div>
+        <div class="info-grid">
+          <span class="info-key">Designation</span>
+          <span class="info-val">${data.name || "—"}</span>
+          <span class="info-key">NASA JPL</span>
+          <span class="info-val"><a href="${jplUrl}" target="_blank" rel="noopener">${jplUrl}</a></span>
+          <span class="info-key">Abs. Magnitude</span>
+          <span class="info-val">${data.absolute_magnitude_h || "—"} H</span>
+          <span class="info-key">Diameter (min)</span>
+          <span class="info-val">${fmt(est.estimated_diameter_min, 4)} km</span>
+          <span class="info-key">Diameter (max)</span>
+          <span class="info-val">${fmt(est.estimated_diameter_max, 4)} km</span>
+          <span class="info-key">Hazard Status</span>
+          <span class="info-val">${phaBadge}</span>
+          <span class="info-key">Sentry Status</span>
+          <span class="info-val">${sentryBadge}</span>
+        </div>
+      </div>
+
+      <div class="glass orbital-panel">
+        <div class="panel-title">Orbital Data</div>
+        <div class="info-grid">
+          <span class="info-key">Orbit Class</span>
+          <span class="info-val">${oc.orbit_class_type || "—"} — ${oc.orbit_class_description || ""}</span>
+          <span class="info-key">Orbital Period</span>
+          <span class="info-val">${fmt(od.orbital_period, 2)} days</span>
+          <span class="info-key">Perihelion (AU)</span>
+          <span class="info-val">${fmt(od.perihelion_distance, 6)}</span>
+          <span class="info-key">Aphelion (AU)</span>
+          <span class="info-val">${fmt(od.aphelion_distance, 6)}</span>
+          <span class="info-key">Inclination</span>
+          <span class="info-val">${fmt(od.inclination, 4)}°</span>
+          <span class="info-key">Eccentricity</span>
+          <span class="info-val">${fmt(od.eccentricity, 6)}</span>
+          <span class="info-key">First Observed</span>
+          <span class="info-val">${od.first_observation_date || "—"}</span>
+          <span class="info-key">Last Observed</span>
+          <span class="info-val">${od.last_observation_date || "—"}</span>
+          <span class="info-key">Orbit Determined</span>
+          <span class="info-val">${od.orbit_determination_date || "—"}</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="glass table-panel">
+      <div class="panel-title">Close Approach History (${approaches.length} records)</div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Date</th>
+              <th>Velocity (km/s)</th>
+              <th>Velocity (km/h)</th>
+              <th>Miss Dist. (km)</th>
+              <th>Miss Dist. (LD)</th>
+              <th>Miss Dist. (AU)</th>
+              <th>Orbiting Body</th>
+            </tr>
+          </thead>
+          <tbody>${rows || "<tr><td colspan='7' style='text-align:center;color:var(--muted)'>No approach data available</td></tr>"}</tbody>
+        </table>
+      </div>
+    </div>
+  `;
+}
+
+function renderError(name, msg, id) {
+  return `
+    <div class="glass error-card">
+      <h3>&#9888; Failed to load ${name}</h3>
+      <p>Error: ${msg}</p>
+      <button class="retry-btn" onclick="retryAsteroid('${id}')">Retry</button>
+    </div>
+  `;
+}
+
+function renderSkeleton() {
+  return `
+    <div class="metrics-row">
+      ${[0,1,2,3].map(() => `<div class="skeleton" style="height:100px"></div>`).join("")}
+    </div>
+    <div class="info-row">
+      <div class="skeleton" style="height:220px"></div>
+      <div class="skeleton" style="height:220px"></div>
+    </div>
+    <div class="skeleton" style="height:280px"></div>
+  `;
+}
+
+// ── Init ───────────────────────────────────────────────────────────────────
+const tabBar = document.getElementById("tab-bar");
+const tabContent = document.getElementById("tab-content");
+
+// Build tab skeleton structure
+ASTEROIDS.forEach((ast, i) => {
+  // Tab button
+  const btn = document.createElement("button");
+  btn.className = "tab-btn" + (i === 0 ? " active" : "");
+  btn.id = `tab-btn-${i}`;
+  btn.setAttribute("role", "tab");
+  btn.setAttribute("aria-selected", i === 0 ? "true" : "false");
+  btn.setAttribute("aria-controls", `tab-panel-${i}`);
+  btn.textContent = ast.name;
+  btn.addEventListener("click", () => activateTab(i));
+  tabBar.appendChild(btn);
+
+  // Tab panel
+  const panel = document.createElement("div");
+  panel.className = "tab-panel" + (i === 0 ? " active" : "");
+  panel.id = `tab-panel-${i}`;
+  panel.setAttribute("role", "tabpanel");
+  panel.innerHTML = renderSkeleton();
+  tabContent.appendChild(panel);
+});
+
+function activateTab(index) {
+  document.querySelectorAll(".tab-btn").forEach((b, i) => {
+    b.classList.toggle("active", i === index);
+    b.setAttribute("aria-selected", i === index ? "true" : "false");
+  });
+  document.querySelectorAll(".tab-panel").forEach((p, i) => {
+    p.classList.toggle("active", i === index);
+  });
+}
+
+async function retryAsteroid(id) {
+  const i = ASTEROIDS.findIndex(a => a.id === id);
+  if (i === -1) return;
+  const panel = document.getElementById(`tab-panel-${i}`);
+  panel.innerHTML = renderSkeleton();
+  try {
+    const data = await fetchAsteroid(id);
+    panel.innerHTML = renderPanel(data);
+    // Update tab label with PHA indicator
+    const btn = document.getElementById(`tab-btn-${i}`);
+    btn.innerHTML = ASTEROIDS[i].name + (data.is_potentially_hazardous_asteroid ? '<span class="pha-icon">&#9888;</span>' : "");
+  } catch (err) {
+    panel.innerHTML = renderError(ASTEROIDS[i].name, err.message, id);
+  }
+}
+
+// Load all asteroids in parallel
+(async function init() {
+  const results = await Promise.allSettled(ASTEROIDS.map(a => fetchAsteroid(a.id)));
+
+  // Hide loading overlay
+  const overlay = document.getElementById("loading-overlay");
+  overlay.classList.add("fade-out");
+  setTimeout(() => overlay.remove(), 500);
+
+  results.forEach((result, i) => {
+    const panel = document.getElementById(`tab-panel-${i}`);
+    const btn   = document.getElementById(`tab-btn-${i}`);
+    if (result.status === "fulfilled") {
+      const data = result.value;
+      panel.innerHTML = renderPanel(data);
+      btn.innerHTML = ASTEROIDS[i].name + (data.is_potentially_hazardous_asteroid ? '<span class="pha-icon">&#9888;</span>' : "");
+    } else {
+      panel.innerHTML = renderError(ASTEROIDS[i].name, result.reason.message, ASTEROIDS[i].id);
+    }
+  });
+})();
+</script>
+</body>
+</html>
