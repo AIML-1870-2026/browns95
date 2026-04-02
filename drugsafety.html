@@ -1,0 +1,1119 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Drug Safety Explorer</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #f4f7fb;
+    --primary: #1a3d7c;
+    --card-bg: #ffffff;
+    --radius: 12px;
+    --shadow: 0 2px 12px rgba(0,0,0,0.08);
+    --shadow-md: 0 4px 24px rgba(0,0,0,0.12);
+  }
+  body { font-family: 'Inter', sans-serif; background: var(--bg); color: #1a1a2e; min-height: 100vh; }
+  /* Sticky Disclaimer */
+  #disclaimer {
+    position: sticky; top: 0; z-index: 1000;
+    background: #fff3cd; border-bottom: 2px solid #ffc107;
+    padding: 10px 20px; text-align: center; color: #856404;
+    font-size: 14px; font-weight: 500; line-height: 1.5;
+  }
+  #disclaimer strong { font-weight: 700; }
+  /* Header */
+  #site-header {
+    background: var(--primary); color: #fff;
+    padding: 18px 32px; display: flex; align-items: center; justify-content: space-between;
+    box-shadow: 0 2px 8px rgba(26,61,124,0.3);
+  }
+  #site-header h1 { font-size: 22px; font-weight: 800; letter-spacing: -0.3px; }
+  #site-header h1 span { color: #64b5f6; }
+  #info-btn {
+    background: rgba(255,255,255,0.15); border: 2px solid rgba(255,255,255,0.4);
+    color: #fff; border-radius: 50%; width: 38px; height: 38px;
+    font-size: 18px; cursor: pointer; display: flex; align-items: center; justify-content: center;
+    transition: background 0.2s;
+  }
+  #info-btn:hover { background: rgba(255,255,255,0.3); }
+  /* Modal */
+  #modal-overlay {
+    position: fixed; inset: 0; background: rgba(0,0,0,0.55); z-index: 2000;
+    display: flex; align-items: center; justify-content: center;
+    opacity: 0; pointer-events: none; transition: opacity 0.25s;
+  }
+  #modal-overlay.active { opacity: 1; pointer-events: all; }
+  #modal-card {
+    background: #fff; border-radius: 16px; padding: 32px; max-width: 520px; width: 90%;
+    box-shadow: 0 8px 48px rgba(0,0,0,0.22); position: relative;
+    transform: translateY(20px); transition: transform 0.25s;
+  }
+  #modal-overlay.active #modal-card { transform: translateY(0); }
+  #modal-close {
+    position: absolute; top: 14px; right: 16px; background: none; border: none;
+    font-size: 22px; cursor: pointer; color: #666; line-height: 1;
+  }
+  #modal-close:hover { color: #111; }
+  #modal-card h2 { font-size: 20px; font-weight: 700; color: var(--primary); margin-bottom: 20px; }
+  .modal-class { display: flex; align-items: flex-start; gap: 14px; margin-bottom: 18px; }
+  .modal-class:last-child { margin-bottom: 0; }
+  .class-badge { padding: 3px 10px; border-radius: 6px; font-weight: 700; font-size: 13px; white-space: nowrap; flex-shrink: 0; margin-top: 2px; }
+  .badge-i { background: #fee2e2; color: #991b1b; }
+  .badge-ii { background: #fef3c7; color: #92400e; }
+  .badge-iii { background: #d1fae5; color: #065f46; }
+  .modal-class p { font-size: 14px; color: #444; line-height: 1.6; }
+  /* Main Content */
+  #main { max-width: 1100px; margin: 0 auto; padding: 28px 20px 60px; }
+  /* Tab Nav */
+  #tab-nav { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 28px; }
+  .tab-btn {
+    padding: 9px 20px; border-radius: 50px; border: 2px solid transparent;
+    font-family: 'Inter', sans-serif; font-size: 13.5px; font-weight: 600;
+    cursor: pointer; background: #fff; color: #555;
+    transition: all 0.2s; box-shadow: var(--shadow);
+    white-space: nowrap;
+  }
+  .tab-btn:hover { border-color: var(--drug-color, #1a3d7c); color: var(--drug-color, #1a3d7c); }
+  .tab-btn.active {
+    background: var(--drug-color, #1a3d7c); color: #fff;
+    border-color: var(--drug-color, #1a3d7c);
+    box-shadow: 0 0 0 4px color-mix(in srgb, var(--drug-color, #1a3d7c) 25%, transparent);
+  }
+  /* Tab Panel */
+  .tab-panel { display: none; }
+  .tab-panel.active { display: block; }
+  /* Cards */
+  .card { background: #fff; border-radius: var(--radius); box-shadow: var(--shadow); padding: 24px; margin-bottom: 20px; }
+  .card-title { font-size: 16px; font-weight: 700; color: var(--primary); margin-bottom: 16px; border-bottom: 2px solid #f0f4fa; padding-bottom: 10px; }
+  /* Drug Header Card */
+  .drug-header-card { display: flex; align-items: flex-start; gap: 24px; flex-wrap: wrap; }
+  .drug-header-info { flex: 1; min-width: 200px; }
+  .drug-header-info h2 { font-size: 28px; font-weight: 800; color: var(--primary); }
+  .drug-class-badge { display: inline-block; padding: 4px 14px; border-radius: 50px; font-size: 12px; font-weight: 700; margin: 8px 0 10px; }
+  .drug-brand { font-size: 13px; color: #666; margin-bottom: 8px; }
+  .drug-summary { font-size: 15px; color: #333; line-height: 1.6; }
+  .drug-svg-wrap { width: 110px; flex-shrink: 0; display: flex; flex-direction: column; align-items: center; }
+  .boxed-warning { background: #fee2e2; border: 2px solid #ef4444; border-radius: 8px; padding: 12px 16px; margin-top: 14px; }
+  .boxed-warning-title { font-size: 12px; font-weight: 800; color: #991b1b; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px; }
+  .boxed-warning p { font-size: 13px; color: #7f1d1d; line-height: 1.5; }
+  /* How It Works */
+  .mechanism-diagram { margin: 14px 0; overflow-x: auto; }
+  .fda-label-section { margin-top: 14px; }
+  .fda-label-section summary { cursor: pointer; font-weight: 600; font-size: 14px; color: var(--primary); padding: 8px 12px; background: #f0f4fa; border-radius: 8px; user-select: none; }
+  .fda-label-section summary:hover { background: #e2eaf5; }
+  .fda-label-text { padding: 12px; font-size: 13px; color: #444; line-height: 1.7; max-height: 250px; overflow-y: auto; background: #fafbfc; border-radius: 0 0 8px 8px; border: 1px solid #e8edf5; border-top: none; }
+  /* Side Effects */
+  .se-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px; }
+  .se-cat { border-radius: 10px; overflow: hidden; border: 1px solid #e8edf5; }
+  .se-cat-header { padding: 10px 16px; font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; }
+  .se-cat-header.common { background: #d1fae5; color: #065f46; }
+  .se-cat-header.serious { background: #fef3c7; color: #92400e; }
+  .se-cat-header.rare { background: #fee2e2; color: #991b1b; }
+  .se-cat-body { padding: 12px 16px; display: flex; flex-direction: column; gap: 7px; }
+  .se-item { display: flex; justify-content: space-between; align-items: center; gap: 8px; font-size: 13px; }
+  .se-item span:first-child { flex: 1; }
+  .sev-badge { padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 700; white-space: nowrap; }
+  .sev-mild { background: #d1fae5; color: #065f46; }
+  .sev-moderate { background: #fef3c7; color: #92400e; }
+  .sev-severe { background: #fee2e2; color: #991b1b; }
+  .se-icons { display: flex; gap: 14px; flex-wrap: wrap; margin-top: 16px; }
+  .se-icon-card { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 14px 18px; background: #f8fafc; border-radius: 10px; border: 1px solid #e8edf5; font-size: 12px; font-weight: 600; color: #555; flex: 1; min-width: 90px; max-width: 130px; }
+  /* Interactions */
+  .interactions-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  @media (max-width: 640px) { .interactions-grid { grid-template-columns: 1fr; } }
+  .int-col h4 { font-size: 14px; font-weight: 700; margin-bottom: 12px; display: flex; align-items: center; gap: 6px; }
+  .int-item { padding: 10px 14px; border-radius: 8px; margin-bottom: 8px; border-left: 4px solid; }
+  .int-item.avoid { background: #fff5f5; border-color: #ef4444; }
+  .int-item.caution { background: #fffbeb; border-color: #f59e0b; }
+  .int-item .int-name { font-weight: 700; font-size: 13px; }
+  .int-item .int-why { font-size: 12px; color: #555; margin-top: 3px; line-height: 1.4; }
+  .risk-badge { display: inline-block; padding: 1px 7px; border-radius: 4px; font-size: 11px; font-weight: 700; margin-top: 4px; }
+  .risk-high { background: #fee2e2; color: #991b1b; }
+  .risk-mod { background: #fef3c7; color: #92400e; }
+  .risk-low { background: #d1fae5; color: #065f46; }
+  /* Contraindications */
+  .contra-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 14px; }
+  .contra-item { display: flex; align-items: flex-start; gap: 10px; padding: 14px; background: #fff5f5; border-radius: 8px; border: 1px solid #fecaca; }
+  .contra-icon { font-size: 20px; flex-shrink: 0; line-height: 1.2; }
+  .contra-item strong { display: block; font-size: 13.5px; color: #991b1b; font-weight: 700; }
+  .contra-item p { font-size: 12px; color: #7f1d1d; margin-top: 3px; line-height: 1.4; }
+  /* Dosage Chart */
+  .dose-toggles { display: flex; gap: 8px; margin-bottom: 16px; flex-wrap: wrap; }
+  .dose-toggle { padding: 6px 16px; border-radius: 50px; border: 2px solid; font-family: 'Inter', sans-serif; font-size: 13px; font-weight: 600; cursor: pointer; background: #fff; transition: all 0.2s; }
+  .dose-toggle.active { color: #fff; }
+  .chart-wrap { position: relative; height: 280px; }
+  .chart-disclaimer { font-size: 12px; color: #888; margin-top: 10px; font-style: italic; text-align: center; }
+  /* Recalls */
+  .recall-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  .recall-table th { background: #f0f4fa; padding: 9px 12px; text-align: left; font-weight: 700; color: var(--primary); font-size: 12px; text-transform: uppercase; letter-spacing: 0.3px; }
+  .recall-table td { padding: 9px 12px; border-bottom: 1px solid #f0f4fa; vertical-align: top; }
+  .recall-table tr:last-child td { border-bottom: none; }
+  .recall-table tr:hover td { background: #fafbff; }
+  .recall-cls { padding: 2px 8px; border-radius: 5px; font-size: 11px; font-weight: 700; }
+  .cls-i { background: #fee2e2; color: #991b1b; }
+  .cls-ii { background: #fef3c7; color: #92400e; }
+  .cls-iii { background: #d1fae5; color: #065f46; }
+  .no-recalls { display: flex; align-items: center; gap: 12px; padding: 16px; background: #d1fae5; border-radius: 8px; border: 1px solid #6ee7b7; color: #065f46; font-weight: 600; font-size: 14px; }
+  /* Adverse Events */
+  .ae-total { font-size: 32px; font-weight: 800; color: var(--primary); margin-bottom: 4px; }
+  .ae-label { font-size: 13px; color: #888; margin-bottom: 20px; }
+  .ae-bar-row { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+  .ae-reaction-name { font-size: 13px; font-weight: 500; width: 220px; flex-shrink: 0; text-transform: capitalize; }
+  .ae-bar-track { flex: 1; background: #f0f4fa; border-radius: 50px; height: 14px; overflow: hidden; }
+  .ae-bar-fill { height: 100%; border-radius: 50px; background: var(--drug-color, #1a3d7c); transition: width 0.6s ease; }
+  .ae-count { font-size: 12px; font-weight: 700; color: #555; min-width: 50px; text-align: right; }
+  .ae-note { font-size: 12px; color: #888; font-style: italic; margin-top: 14px; }
+  /* Skeleton */
+  .skeleton { background: linear-gradient(90deg, #e8edf5 25%, #f4f7fb 50%, #e8edf5 75%); background-size: 200% 100%; animation: shimmer 1.5s infinite; border-radius: 6px; }
+  @keyframes shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+  .skel-line { height: 14px; margin-bottom: 8px; }
+  .skel-line.short { width: 40%; }
+  .skel-line.med { width: 65%; }
+  .skel-line.full { width: 100%; }
+  /* Error Card */
+  .error-card { background: #fff5f5; border: 1px solid #fecaca; border-radius: 8px; padding: 14px 16px; color: #991b1b; font-size: 13px; }
+  /* Utility */
+  .flex { display: flex; }
+  .items-center { align-items: center; }
+  .gap-8 { gap: 8px; }
+  .text-sm { font-size: 13px; }
+  .text-muted { color: #888; }
+  .mt-8 { margin-top: 8px; }
+  .mt-16 { margin-top: 16px; }
+  .table-scroll { overflow-x: auto; }
+  .recall-modal-link { background: none; border: none; font-size: 12px; cursor: pointer; color: var(--primary); text-decoration: underline; margin-left: 8px; font-family: 'Inter', sans-serif; }
+  @media (max-width: 700px) {
+    #site-header h1 { font-size: 17px; }
+    #main { padding: 16px 12px 40px; }
+    .drug-header-card { gap: 14px; }
+    .ae-reaction-name { width: 140px; font-size: 12px; }
+  }
+</style>
+</head>
+<body>
+
+<!-- Sticky Disclaimer -->
+<div id="disclaimer" role="alert" aria-live="polite">
+  &#9888;&#65039; <strong>Do not take any of these drugs without first consulting a medical professional.</strong> This tool is for informational purposes only and does not constitute medical advice.
+</div>
+
+<!-- Header -->
+<header id="site-header">
+  <h1>Drug Safety <span>Explorer</span></h1>
+  <button id="info-btn" aria-label="Open recall classification guide" title="Recall Classification Guide">&#8505;</button>
+</header>
+
+<!-- Recall Classification Modal -->
+<div id="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="modal-title" tabindex="-1">
+  <div id="modal-card">
+    <button id="modal-close" aria-label="Close modal">&times;</button>
+    <h2 id="modal-title">FDA Recall Classification Guide</h2>
+    <div class="modal-class">
+      <span class="class-badge badge-i">Class I</span>
+      <p><strong>Serious / Death Risk:</strong> A situation where there is a reasonable probability that use of the product will cause serious adverse health consequences or death. Example: NDMA contamination in valsartan batches.</p>
+    </div>
+    <div class="modal-class">
+      <span class="class-badge badge-ii">Class II</span>
+      <p><strong>Temporary Harm Risk:</strong> A situation where use of a product may cause temporary adverse health consequences or a remote probability of serious harm. Example: Super-potent tablet causing severe hypotension.</p>
+    </div>
+    <div class="modal-class">
+      <span class="class-badge badge-iii">Class III</span>
+      <p><strong>Unlikely Any Harm:</strong> A situation where use of a product is not likely to cause any adverse health consequence. Example: Labeling error involving only the lot number.</p>
+    </div>
+  </div>
+</div>
+
+<!-- Main Content -->
+<main id="main">
+  <nav id="tab-nav" role="tablist" aria-label="Blood pressure medications"></nav>
+  <div id="tab-content"></div>
+</main>
+
+<script>
+// ─── DRUG DATA ────────────────────────────────────────────────────────────────
+const DRUG_DATA = [
+  {
+    id: "lisinopril",
+    name: "Lisinopril",
+    brands: "Prinivil, Zestril, Qbrelis",
+    cls: "ACE Inhibitor",
+    color: "#00838f",
+    summary: "A long-acting ACE inhibitor used for hypertension, heart failure, and post-MI cardiac protection.",
+    boxedWarning: null,
+    sideEffects: {
+      common: [
+        { name: "Dry cough (20–35%)", sev: "mild" },
+        { name: "Dizziness", sev: "mild" },
+        { name: "Headache", sev: "mild" },
+        { name: "Fatigue", sev: "mild" },
+        { name: "Nausea", sev: "mild" }
+      ],
+      serious: [
+        { name: "Angioedema", sev: "severe" },
+        { name: "Hyperkalemia", sev: "severe" },
+        { name: "Acute renal failure", sev: "severe" },
+        { name: "First-dose hypotension", sev: "severe" }
+      ],
+      rare: [
+        { name: "Agranulocytosis", sev: "severe" },
+        { name: "Hepatotoxicity", sev: "severe" },
+        { name: "Cholestatic jaundice", sev: "severe" }
+      ]
+    },
+    seIcons: [
+      { label: "Dry Cough", svg: "cough" },
+      { label: "Swelling (Angioedema)", svg: "swelling" },
+      { label: "Blood Pressure Drop", svg: "bp" }
+    ],
+    interactions: {
+      avoid: [
+        { name: "Potassium supplements / salt substitutes", why: "Combined hyperkalemia risk — may become life-threatening", risk: "high" },
+        { name: "ARBs (dual RAAS blockade)", why: "Increased risk of renal failure, hypotension, and hyperkalemia", risk: "high" },
+        { name: "Aliskiren (in diabetes)", why: "Hypotension, renal impairment, and hyperkalemia risk", risk: "high" },
+        { name: "NSAIDs (ibuprofen, naproxen)", why: "Reduced antihypertensive effect plus additive renal damage", risk: "mod" }
+      ],
+      caution: [
+        { name: "Lithium", why: "ACE inhibitors reduce lithium clearance, risking toxicity", risk: "mod" },
+        { name: "Antidiabetics (insulin, sulfonylureas)", why: "Enhanced hypoglycemic effect", risk: "mod" },
+        { name: "Gold injections (sodium aurothiomalate)", why: "Nitritoid reactions including flushing and nausea", risk: "low" }
+      ],
+      food: "Avoid high-potassium foods (bananas, oranges, potatoes) in excess. Avoid salt substitutes containing potassium chloride."
+    },
+    contraindications: [
+      { title: "Pregnancy (2nd/3rd trimester)", desc: "Can cause fetal renal dysplasia, oligohydramnios, neonatal death." },
+      { title: "History of ACE inhibitor-induced angioedema", desc: "Re-exposure carries high risk of recurrent, potentially fatal angioedema." },
+      { title: "Hereditary or idiopathic angioedema", desc: "Increased susceptibility to angioedema reactions." },
+      { title: "Bilateral renal artery stenosis", desc: "Can cause acute renal failure due to loss of efferent arteriolar tone." },
+      { title: "Co-administration with Aliskiren (in diabetes)", desc: "Prohibited due to increased risk of renal impairment and cardiovascular events." }
+    ],
+    dosage: {
+      short:   [5, 5, 10, 10, 10, 20],
+      average: [5, 10, 10, 20, 20, 40],
+      tall:    [10, 10, 20, 20, 40, 40]
+    },
+    mechanism: "raas",
+    fdaSearch: "LISINOPRIL"
+  },
+  {
+    id: "amlodipine",
+    name: "Amlodipine",
+    brands: "Norvasc, Katerzia, Norliqva",
+    cls: "Calcium Channel Blocker",
+    color: "#6a1b9a",
+    summary: "A dihydropyridine calcium channel blocker that relaxes arterial smooth muscle for hypertension and angina.",
+    boxedWarning: null,
+    sideEffects: {
+      common: [
+        { name: "Peripheral edema (up to 15%)", sev: "mild" },
+        { name: "Flushing", sev: "mild" },
+        { name: "Palpitations", sev: "mild" },
+        { name: "Dizziness", sev: "mild" },
+        { name: "Fatigue", sev: "mild" }
+      ],
+      serious: [
+        { name: "Severe hypotension", sev: "severe" },
+        { name: "Worsening angina / acute MI", sev: "severe" },
+        { name: "Symptomatic bradycardia", sev: "severe" }
+      ],
+      rare: [
+        { name: "Gynecomastia", sev: "moderate" },
+        { name: "Hepatitis / jaundice", sev: "severe" },
+        { name: "Erythema multiforme", sev: "severe" }
+      ]
+    },
+    seIcons: [
+      { label: "Ankle Edema", svg: "edema" },
+      { label: "Flushing", svg: "flush" },
+      { label: "Heart Palpitations", svg: "heart" }
+    ],
+    interactions: {
+      avoid: [
+        { name: "Grapefruit / grapefruit juice", why: "CYP3A4 inhibition dramatically increases amlodipine blood levels", risk: "high" },
+        { name: "Simvastatin > 20 mg/day", why: "Amlodipine raises simvastatin exposure, increasing myopathy and rhabdomyolysis risk", risk: "high" },
+        { name: "Cyclosporine", why: "Amlodipine increases cyclosporine concentrations unpredictably", risk: "high" }
+      ],
+      caution: [
+        { name: "CYP3A4 inhibitors (ketoconazole, clarithromycin)", why: "Increase amlodipine plasma levels and hypotension risk", risk: "mod" },
+        { name: "Other antihypertensive agents", why: "Additive blood pressure-lowering effect", risk: "mod" },
+        { name: "CYP3A4 inducers (rifampin, St. John's Wort)", why: "May reduce amlodipine efficacy", risk: "low" }
+      ],
+      food: "Avoid grapefruit and grapefruit juice entirely while taking amlodipine — they inhibit the enzyme that breaks it down."
+    },
+    contraindications: [
+      { title: "Cardiogenic shock", desc: "Calcium channel blockade worsens cardiac output in shock states." },
+      { title: "Clinically significant aortic stenosis", desc: "Vasodilation can critically reduce coronary perfusion pressure." },
+      { title: "Known hypersensitivity to dihydropyridines", desc: "Cross-reactivity within the dihydropyridine class is well-documented." }
+    ],
+    dosage: {
+      short:   [2.5, 2.5, 5, 5, 5, 10],
+      average: [2.5, 5, 5, 5, 10, 10],
+      tall:    [5, 5, 5, 10, 10, 10]
+    },
+    mechanism: "calcium",
+    fdaSearch: "AMLODIPINE"
+  },
+  {
+    id: "losartan",
+    name: "Losartan",
+    brands: "Cozaar, Hyzaar (with HCTZ)",
+    cls: "Angiotensin Receptor Blocker",
+    color: "#2e7d32",
+    summary: "An ARB that selectively blocks angiotensin II AT1 receptors, lowering blood pressure without the cough of ACE inhibitors.",
+    boxedWarning: null,
+    sideEffects: {
+      common: [
+        { name: "Dizziness", sev: "mild" },
+        { name: "Fatigue", sev: "mild" },
+        { name: "Hypotension (first dose)", sev: "mild" },
+        { name: "Back pain", sev: "mild" },
+        { name: "Upper respiratory infection", sev: "mild" }
+      ],
+      serious: [
+        { name: "Hyperkalemia", sev: "severe" },
+        { name: "Renal impairment / failure", sev: "severe" },
+        { name: "Angioedema (rare)", sev: "severe" }
+      ],
+      rare: [
+        { name: "Rhabdomyolysis", sev: "severe" },
+        { name: "Hepatic dysfunction", sev: "severe" },
+        { name: "Thrombocytopenia", sev: "severe" }
+      ]
+    },
+    seIcons: [
+      { label: "Dizziness", svg: "dizzy" },
+      { label: "Kidney Function", svg: "kidney" },
+      { label: "Potassium Level", svg: "electrolyte" }
+    ],
+    interactions: {
+      avoid: [
+        { name: "Aliskiren (in diabetes or renal impairment)", why: "Dual RAAS blockade — dangerous hypotension and acute kidney injury", risk: "high" },
+        { name: "Potassium-sparing diuretics (spironolactone, amiloride)", why: "Severe hyperkalemia risk", risk: "high" },
+        { name: "ACE inhibitors (dual RAAS blockade)", why: "Increased renal failure, hyperkalemia, hypotension without added benefit", risk: "high" }
+      ],
+      caution: [
+        { name: "NSAIDs", why: "Reduced antihypertensive effect and additive renal impairment", risk: "mod" },
+        { name: "Lithium", why: "Losartan reduces lithium clearance, raising toxicity risk", risk: "mod" },
+        { name: "Rifampin", why: "Strong inducer reduces losartan and active metabolite levels significantly", risk: "mod" },
+        { name: "Fluconazole", why: "Inhibits CYP2C9, reducing conversion to active metabolite EXP-3174", risk: "mod" }
+      ],
+      food: "Avoid high-potassium foods in excess. No grapefruit interaction. Can be taken with or without food."
+    },
+    contraindications: [
+      { title: "Pregnancy", desc: "Causes fetal renal dysgenesis, oligohydramnios, skull hypoplasia, and neonatal death." },
+      { title: "Co-administration with Aliskiren (diabetes or renal impairment)", desc: "Prohibited by FDA due to excessive cardiovascular and renal risk." },
+      { title: "Hypersensitivity to losartan", desc: "Includes reactions to any component of the formulation." }
+    ],
+    dosage: {
+      short:   [25, 25, 50, 50, 50, 100],
+      average: [25, 50, 50, 50, 100, 100],
+      tall:    [50, 50, 50, 100, 100, 100]
+    },
+    mechanism: "at1",
+    fdaSearch: "LOSARTAN"
+  },
+  {
+    id: "metoprolol",
+    name: "Metoprolol",
+    brands: "Lopressor (tartrate), Toprol-XL (succinate)",
+    cls: "Beta Blocker",
+    color: "#e65100",
+    summary: "A cardioselective β1-adrenergic blocker reducing heart rate and cardiac output for hypertension, angina, and heart failure.",
+    boxedWarning: {
+      title: "Boxed Warning: Abrupt Withdrawal",
+      text: "Do NOT abruptly discontinue metoprolol in patients with coronary artery disease. Abrupt cessation has precipitated severe angina exacerbation, myocardial infarction, and ventricular arrhythmias. Taper the dose gradually over at least 1–2 weeks."
+    },
+    sideEffects: {
+      common: [
+        { name: "Fatigue", sev: "mild" },
+        { name: "Dizziness", sev: "mild" },
+        { name: "Bradycardia", sev: "moderate" },
+        { name: "Depression / mood changes", sev: "moderate" },
+        { name: "Cold extremities", sev: "mild" }
+      ],
+      serious: [
+        { name: "Heart block (2nd/3rd degree)", sev: "severe" },
+        { name: "Worsening heart failure", sev: "severe" },
+        { name: "Severe bronchospasm", sev: "severe" }
+      ],
+      rare: [
+        { name: "Agranulocytosis", sev: "severe" },
+        { name: "Lupus-like syndrome", sev: "severe" },
+        { name: "Ischemic colitis", sev: "severe" }
+      ]
+    },
+    seIcons: [
+      { label: "Bradycardia", svg: "heart" },
+      { label: "Fatigue", svg: "fatigue" },
+      { label: "Bronchospasm", svg: "lungs" }
+    ],
+    interactions: {
+      avoid: [
+        { name: "Verapamil / Diltiazem (IV)", why: "Combined AV-nodal blockade can cause life-threatening AV block or cardiac arrest", risk: "high" },
+        { name: "MAOIs", why: "Hypertensive crisis risk during and 14 days after MAOI use", risk: "high" },
+        { name: "Abrupt clonidine withdrawal", why: "Beta-blockade unmasks rebound hypertensive crisis from clonidine withdrawal", risk: "high" }
+      ],
+      caution: [
+        { name: "Antidiabetics (insulin, sulfonylureas)", why: "Beta-blockade masks tachycardia — an early hypoglycemia warning sign", risk: "mod" },
+        { name: "NSAIDs", why: "Reduce antihypertensive effect of metoprolol", risk: "mod" },
+        { name: "General anesthetic agents", why: "Additive cardiac depression and hypotension", risk: "mod" },
+        { name: "Alcohol", why: "Additive CNS depression and blood pressure lowering", risk: "low" }
+      ],
+      food: "Take with or immediately after meals to improve absorption (tartrate form). Avoid alcohol. No grapefruit interaction."
+    },
+    contraindications: [
+      { title: "Sinus bradycardia (< 45 bpm)", desc: "Further heart rate reduction can cause hemodynamic collapse." },
+      { title: "Sick sinus syndrome (without pacemaker)", desc: "Risk of severe bradycardia and syncope." },
+      { title: "2nd or 3rd degree AV block (without pacemaker)", desc: "Beta-blockade can worsen conduction defects fatally." },
+      { title: "Cardiogenic shock", desc: "Negative inotropy worsens pump failure." },
+      { title: "Decompensated heart failure", desc: "Must be stabilized before initiating metoprolol." },
+      { title: "Severe reactive airway disease (asthma)", desc: "Even cardioselective beta-blockers can cause fatal bronchospasm." }
+    ],
+    dosage: {
+      short:   [25, 25, 50, 50, 100, 100],
+      average: [25, 50, 50, 100, 100, 200],
+      tall:    [50, 50, 100, 100, 200, 200]
+    },
+    mechanism: "beta1",
+    fdaSearch: "METOPROLOL"
+  },
+  {
+    id: "hctz",
+    name: "Hydrochlorothiazide",
+    brands: "Microzide, HydroDIURIL, Esidrix",
+    cls: "Thiazide Diuretic",
+    color: "#1565c0",
+    summary: "A thiazide diuretic that inhibits NaCl reabsorption in the distal convoluted tubule, reducing plasma volume and blood pressure.",
+    boxedWarning: null,
+    sideEffects: {
+      common: [
+        { name: "Electrolyte disturbances", sev: "moderate" },
+        { name: "Increased urination (polyuria)", sev: "mild" },
+        { name: "Dizziness / orthostatic hypotension", sev: "mild" },
+        { name: "Muscle cramps", sev: "mild" },
+        { name: "Photosensitivity", sev: "mild" }
+      ],
+      serious: [
+        { name: "Hypokalemia", sev: "severe" },
+        { name: "Hyponatremia", sev: "severe" },
+        { name: "Hyperuricemia / gout", sev: "moderate" },
+        { name: "Glucose intolerance / worsening diabetes", sev: "moderate" }
+      ],
+      rare: [
+        { name: "Pancreatitis", sev: "severe" },
+        { name: "Aplastic anemia / agranulocytosis", sev: "severe" },
+        { name: "Acute angle-closure glaucoma", sev: "severe" }
+      ]
+    },
+    seIcons: [
+      { label: "Electrolytes", svg: "electrolyte" },
+      { label: "Increased Urination", svg: "kidney" },
+      { label: "Gout / Uric Acid", svg: "gout" }
+    ],
+    interactions: {
+      avoid: [
+        { name: "Lithium", why: "HCTZ reduces renal lithium clearance, causing lithium toxicity", risk: "high" },
+        { name: "Dofetilide", why: "Hypokalemia from HCTZ increases QT prolongation and torsades de pointes risk", risk: "high" }
+      ],
+      caution: [
+        { name: "Digoxin", why: "HCTZ-induced hypokalemia increases sensitivity to digoxin toxicity", risk: "high" },
+        { name: "NSAIDs", why: "Reduce diuretic and antihypertensive efficacy", risk: "mod" },
+        { name: "Corticosteroids", why: "Worsen HCTZ-induced hypokalemia", risk: "mod" },
+        { name: "Antidiabetics (insulin, oral agents)", why: "HCTZ can impair glucose tolerance; dose adjustment may be needed", risk: "mod" },
+        { name: "Cholestyramine / Colestipol", why: "Reduced absorption of HCTZ when taken together", risk: "low" }
+      ],
+      food: "Take in the morning to avoid nighttime urination. Maintain adequate potassium intake. Limit alcohol (worsens orthostatic hypotension). Avoid prolonged sun exposure."
+    },
+    contraindications: [
+      { title: "Anuria", desc: "No urine production means diuretic action is impossible and accumulation risk is high." },
+      { title: "Sulfonamide hypersensitivity", desc: "HCTZ contains a sulfonamide moiety — cross-reactivity is possible." },
+      { title: "Severe renal impairment (eGFR < 30 mL/min)", desc: "Ineffective and may worsen azotemia." },
+      { title: "Severe hepatic impairment", desc: "Electrolyte disturbances can precipitate hepatic coma." }
+    ],
+    dosage: {
+      short:   [12.5, 12.5, 12.5, 25, 25, 25],
+      average: [12.5, 12.5, 25, 25, 25, 50],
+      tall:    [12.5, 25, 25, 25, 50, 50]
+    },
+    mechanism: "nact",
+    fdaSearch: "HYDROCHLOROTHIAZIDE"
+  }
+];
+
+const WEIGHT_LABELS = ['50 kg', '60 kg', '70 kg', '80 kg', '90 kg', '100 kg'];
+
+// ─── SVGs ─────────────────────────────────────────────────────────────────────
+function pillSVG(color) {
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 44" width="100" height="44">
+    <defs>
+      <linearGradient id="pg_${color.replace('#','')}" x1="0" y1="0" x2="1" y2="1">
+        <stop offset="0%" stop-color="${color}" stop-opacity="0.85"/>
+        <stop offset="100%" stop-color="${color}"/>
+      </linearGradient>
+    </defs>
+    <rect x="2" y="2" width="96" height="40" rx="20" ry="20" fill="url(#pg_${color.replace('#','')})" stroke="${color}" stroke-width="1.5"/>
+    <line x1="50" y1="6" x2="50" y2="38" stroke="rgba(255,255,255,0.45)" stroke-width="2" stroke-dasharray="3,2"/>
+    <ellipse cx="25" cy="22" rx="13" ry="10" fill="rgba(255,255,255,0.12)"/>
+  </svg>`;
+}
+
+function mechanismSVG(type, color) {
+  const c = color;
+  const blocked = '#ef4444';
+  if (type === 'raas') {
+    return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 520 90" width="100%" height="90" aria-label="RAAS cascade diagram">
+      <defs><marker id="arr" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto"><path d="M0,0 L0,6 L8,3 z" fill="#555"/></marker></defs>
+      <rect x="0" y="28" width="100" height="34" rx="8" fill="${c}22" stroke="${c}" stroke-width="1.5"/>
+      <text x="50" y="49" text-anchor="middle" font-size="11" font-family="Inter,sans-serif" fill="${c}" font-weight="700">Angiotensinogen</text>
+      <line x1="100" y1="45" x2="128" y2="45" stroke="#555" stroke-width="1.5" marker-end="url(#arr)"/>
+      <text x="114" y="40" font-size="9" text-anchor="middle" fill="#888">Renin</text>
+      <rect x="130" y="28" width="80" height="34" rx="8" fill="${c}22" stroke="${c}" stroke-width="1.5"/>
+      <text x="170" y="49" text-anchor="middle" font-size="11" font-family="Inter,sans-serif" fill="${c}" font-weight="700">Ang I</text>
+      <line x1="210" y1="45" x2="238" y2="45" stroke="#555" stroke-width="1.5" marker-end="url(#arr)"/>
+      <text x="224" y="40" font-size="9" text-anchor="middle" fill="#888">ACE</text>
+      <rect x="240" y="18" width="120" height="54" rx="8" fill="#fee2e2" stroke="${blocked}" stroke-width="2"/>
+      <line x1="240" y1="18" x2="360" y2="72" stroke="${blocked}" stroke-width="2.5"/>
+      <line x1="360" y1="18" x2="240" y2="72" stroke="${blocked}" stroke-width="2.5"/>
+      <text x="300" y="47" text-anchor="middle" font-size="10" font-family="Inter,sans-serif" fill="${blocked}" font-weight="700">ACE BLOCKED</text>
+      <line x1="365" y1="45" x2="393" y2="45" stroke="#aaa" stroke-width="1.5" stroke-dasharray="4,3" marker-end="url(#arr)"/>
+      <rect x="395" y="28" width="120" height="34" rx="8" fill="#f3f4f6" stroke="#ccc" stroke-width="1.5"/>
+      <text x="455" y="44" text-anchor="middle" font-size="10" font-family="Inter,sans-serif" fill="#aaa">No Ang II</text>
+      <text x="455" y="56" text-anchor="middle" font-size="9" font-family="Inter,sans-serif" fill="#aaa">→ BP ↓</text>
+    </svg>`;
+  } else if (type === 'calcium') {
+    return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 100" width="100%" height="100" aria-label="Calcium channel blocking diagram">
+      <rect x="10" y="20" width="100" height="60" rx="10" fill="#f9fafb" stroke="#ccc" stroke-width="1.5"/>
+      <text x="60" y="46" text-anchor="middle" font-size="10" font-family="Inter,sans-serif" fill="#555" font-weight="700">Arterial</text>
+      <text x="60" y="60" text-anchor="middle" font-size="10" font-family="Inter,sans-serif" fill="#555" font-weight="700">Smooth Muscle</text>
+      <rect x="115" y="30" width="26" height="40" rx="6" fill="${c}33" stroke="${c}" stroke-width="2"/>
+      <text x="128" y="52" text-anchor="middle" font-size="9" font-family="Inter,sans-serif" fill="${c}" font-weight="700">Ca²⁺</text>
+      <text x="128" y="64" text-anchor="middle" font-size="8" font-family="Inter,sans-serif" fill="${c}">ch.</text>
+      <rect x="110" y="25" width="36" height="50" rx="6" fill="none" stroke="${c}" stroke-width="2.5"/>
+      <line x1="110" y1="25" x2="146" y2="75" stroke="#ef4444" stroke-width="2.5"/>
+      <line x1="146" y1="25" x2="110" y2="75" stroke="#ef4444" stroke-width="2.5"/>
+      <text x="170" y="48" font-size="10" font-family="Inter,sans-serif" fill="#555">Ca²⁺ influx blocked</text>
+      <text x="170" y="62" font-size="10" font-family="Inter,sans-serif" fill="#555">→ Vasodilation → BP ↓</text>
+      <circle cx="335" cy="50" r="28" fill="${c}15" stroke="${c}" stroke-width="1.5"/>
+      <text x="335" y="46" text-anchor="middle" font-size="9" font-family="Inter,sans-serif" fill="${c}" font-weight="700">${'Amlodipine'}</text>
+      <text x="335" y="58" text-anchor="middle" font-size="8" font-family="Inter,sans-serif" fill="${c}">binds here</text>
+      <line x1="146" y1="50" x2="305" y2="50" stroke="${c}" stroke-width="1.5" stroke-dasharray="4,3"/>
+    </svg>`;
+  } else if (type === 'at1') {
+    return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 420 100" width="100%" height="100" aria-label="AT1 receptor blocking diagram">
+      <rect x="10" y="20" width="90" height="60" rx="10" fill="#f0fdf4" stroke="${c}" stroke-width="1.5"/>
+      <text x="55" y="50" text-anchor="middle" font-size="10" font-family="Inter,sans-serif" fill="${c}" font-weight="700">Angiotensin II</text>
+      <text x="55" y="64" text-anchor="middle" font-size="9" fill="#666">(vasopressor)</text>
+      <defs><marker id="arr2" markerWidth="7" markerHeight="7" refX="5" refY="3" orient="auto"><path d="M0,0 L0,6 L7,3 z" fill="#aaa"/></marker></defs>
+      <line x1="100" y1="50" x2="148" y2="50" stroke="#aaa" stroke-width="1.5" stroke-dasharray="5,3" marker-end="url(#arr2)"/>
+      <rect x="150" y="20" width="100" height="60" rx="10" fill="#fee2e2" stroke="#ef4444" stroke-width="2"/>
+      <text x="200" y="46" text-anchor="middle" font-size="10" font-family="Inter,sans-serif" fill="#991b1b" font-weight="700">AT1 Receptor</text>
+      <text x="200" y="60" text-anchor="middle" font-size="9" fill="#ef4444">BLOCKED by</text>
+      <text x="200" y="72" text-anchor="middle" font-size="9" fill="${c}" font-weight="700">Losartan</text>
+      <line x1="250" y1="50" x2="288" y2="50" stroke="#aaa" stroke-width="1.5" stroke-dasharray="5,3" marker-end="url(#arr2)"/>
+      <rect x="290" y="25" width="120" height="50" rx="10" fill="#f0fdf4" stroke="${c}" stroke-width="1.5"/>
+      <text x="350" y="48" text-anchor="middle" font-size="10" font-family="Inter,sans-serif" fill="${c}" font-weight="700">No vasoconstriction</text>
+      <text x="350" y="62" text-anchor="middle" font-size="9" fill="${c}">→ BP ↓ / Kidney protected</text>
+    </svg>`;
+  } else if (type === 'beta1') {
+    return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 420 100" width="100%" height="100" aria-label="Beta-1 receptor blocking diagram">
+      <ellipse cx="55" cy="50" rx="48" ry="32" fill="#fef9f0" stroke="${c}" stroke-width="1.5"/>
+      <text x="55" y="44" text-anchor="middle" font-size="11" font-family="Inter,sans-serif" fill="${c}" font-weight="700">Heart</text>
+      <text x="55" y="60" text-anchor="middle" font-size="9" fill="#888">β1 adrenergic</text>
+      <rect x="118" y="28" width="84" height="44" rx="10" fill="#fee2e2" stroke="#ef4444" stroke-width="2"/>
+      <text x="160" y="47" text-anchor="middle" font-size="10" font-family="Inter,sans-serif" fill="#991b1b" font-weight="700">β1 Receptor</text>
+      <text x="160" y="60" text-anchor="middle" font-size="9" fill="#ef4444">BLOCKED</text>
+      <defs><marker id="arr3" markerWidth="7" markerHeight="7" refX="5" refY="3" orient="auto"><path d="M0,0 L0,6 L7,3 z" fill="${c}"/></marker></defs>
+      <line x1="103" y1="50" x2="116" y2="50" stroke="${c}" stroke-width="2" marker-end="url(#arr3)"/>
+      <line x1="202" y1="50" x2="230" y2="50" stroke="${c}" stroke-width="2" marker-end="url(#arr3)"/>
+      <rect x="232" y="20" width="170" height="60" rx="10" fill="#f0fdf4" stroke="${c}" stroke-width="1.5"/>
+      <text x="317" y="43" text-anchor="middle" font-size="10" font-family="Inter,sans-serif" fill="${c}" font-weight="700">HR ↓  Contractility ↓</text>
+      <text x="317" y="58" text-anchor="middle" font-size="9" fill="${c}">Cardiac output ↓ → BP ↓</text>
+    </svg>`;
+  } else if (type === 'nact') {
+    return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 440 100" width="100%" height="100" aria-label="HCTZ NaCl transport diagram">
+      <rect x="10" y="15" width="100" height="70" rx="10" fill="#eff6ff" stroke="${c}" stroke-width="1.5"/>
+      <text x="60" y="42" text-anchor="middle" font-size="9" font-family="Inter,sans-serif" fill="${c}" font-weight="700">Kidney DCT</text>
+      <text x="60" y="55" text-anchor="middle" font-size="8" fill="#555">Distal Convoluted</text>
+      <text x="60" y="67" text-anchor="middle" font-size="8" fill="#555">Tubule</text>
+      <rect x="118" y="25" width="84" height="50" rx="10" fill="#fee2e2" stroke="#ef4444" stroke-width="2"/>
+      <text x="160" y="46" text-anchor="middle" font-size="9" font-family="Inter,sans-serif" fill="#991b1b" font-weight="700">NaCl/Cl⁻</text>
+      <text x="160" y="58" text-anchor="middle" font-size="9" fill="#991b1b" font-weight="700">Transporter</text>
+      <text x="160" y="70" text-anchor="middle" font-size="8" fill="#ef4444">INHIBITED</text>
+      <defs><marker id="arr4" markerWidth="7" markerHeight="7" refX="5" refY="3" orient="auto"><path d="M0,0 L0,6 L7,3 z" fill="${c}"/></marker></defs>
+      <line x1="202" y1="50" x2="228" y2="50" stroke="${c}" stroke-width="2" marker-end="url(#arr4)"/>
+      <rect x="230" y="18" width="190" height="64" rx="10" fill="#f0f9ff" stroke="${c}" stroke-width="1.5"/>
+      <text x="325" y="40" text-anchor="middle" font-size="9" font-family="Inter,sans-serif" fill="${c}" font-weight="700">↑ Na⁺/Cl⁻/H₂O excreted</text>
+      <text x="325" y="54" text-anchor="middle" font-size="9" fill="${c}">↓ Plasma volume</text>
+      <text x="325" y="68" text-anchor="middle" font-size="9" fill="${c}">→ BP ↓</text>
+    </svg>`;
+  }
+  return '';
+}
+
+function seIconSVG(type, color) {
+  const s = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 36 36" width="36" height="36">`;
+  const c = color;
+  if (type === 'cough') return s + `<circle cx="18" cy="18" r="17" fill="${c}18" stroke="${c}" stroke-width="1.5"/><path d="M12 14c0-3.3 2.7-6 6-6s6 2.7 6 6c0 2-1 3.8-2.5 5H20l-2 5-2-5h-1.5C13 19.8 12 18 12 14z" fill="none" stroke="${c}" stroke-width="1.5" stroke-linejoin="round"/><path d="M16 23c0 1.1.9 2 2 2s2-.9 2-2" fill="none" stroke="${c}" stroke-width="1.5"/></svg>`;
+  if (type === 'swelling') return s + `<circle cx="18" cy="18" r="17" fill="${c}18" stroke="${c}" stroke-width="1.5"/><ellipse cx="18" cy="22" rx="8" ry="5" fill="${c}33" stroke="${c}" stroke-width="1.5"/><path d="M10 18c0-4.4 3.6-8 8-8s8 3.6 8 8" fill="none" stroke="${c}" stroke-width="1.5"/><line x1="14" y1="10" x2="14" y2="8" stroke="${c}" stroke-width="1.5"/><line x1="18" y1="9" x2="18" y2="7" stroke="${c}" stroke-width="1.5"/><line x1="22" y1="10" x2="22" y2="8" stroke="${c}" stroke-width="1.5"/></svg>`;
+  if (type === 'bp') return s + `<circle cx="18" cy="18" r="17" fill="${c}18" stroke="${c}" stroke-width="1.5"/><path d="M10 22 L18 12 L26 22" fill="none" stroke="${c}" stroke-width="2" stroke-linejoin="round"/><circle cx="18" cy="12" r="2.5" fill="${c}"/><line x1="18" y1="14" x2="18" y2="26" stroke="${c}" stroke-width="1.5"/></svg>`;
+  if (type === 'edema') return s + `<circle cx="18" cy="18" r="17" fill="${c}18" stroke="${c}" stroke-width="1.5"/><rect x="11" y="20" width="14" height="10" rx="4" fill="${c}33" stroke="${c}" stroke-width="1.5"/><path d="M14 20v-5c0-2.2 1.8-4 4-4s4 1.8 4 4v5" fill="none" stroke="${c}" stroke-width="1.5"/></svg>`;
+  if (type === 'flush') return s + `<circle cx="18" cy="18" r="17" fill="${c}18" stroke="${c}" stroke-width="1.5"/><circle cx="18" cy="17" r="7" fill="${c}33" stroke="${c}" stroke-width="1.5"/><path d="M14 15 q4-6 8 0" fill="none" stroke="${c}" stroke-width="1.5"/><circle cx="14" cy="20" r="2" fill="${c}55"/><circle cx="22" cy="20" r="2" fill="${c}55"/></svg>`;
+  if (type === 'heart') return s + `<circle cx="18" cy="18" r="17" fill="${c}18" stroke="${c}" stroke-width="1.5"/><path d="M18 26 C18 26 8 19 8 13.5 C8 10.4 10.4 8 13.5 8 C15.2 8 16.8 8.8 18 10 C19.2 8.8 20.8 8 22.5 8 C25.6 8 28 10.4 28 13.5 C28 19 18 26 18 26Z" fill="${c}55" stroke="${c}" stroke-width="1.5"/></svg>`;
+  if (type === 'dizzy') return s + `<circle cx="18" cy="18" r="17" fill="${c}18" stroke="${c}" stroke-width="1.5"/><path d="M10 14 C10 14 14 10 18 14 C22 18 26 14 26 14" fill="none" stroke="${c}" stroke-width="1.5"/><path d="M10 22 C10 22 14 18 18 22 C22 26 26 22 26 22" fill="none" stroke="${c}" stroke-width="1.5"/><circle cx="18" cy="18" r="2" fill="${c}"/></svg>`;
+  if (type === 'kidney') return s + `<circle cx="18" cy="18" r="17" fill="${c}18" stroke="${c}" stroke-width="1.5"/><path d="M14 26 C10 26 8 22 8 18 C8 12 12 8 16 8 C18 8 18 10 18 12 C18 14 16 14 16 16 C16 18 18 18 18 20 C18 24 16 26 14 26Z" fill="${c}44" stroke="${c}" stroke-width="1.5"/></svg>`;
+  if (type === 'electrolyte') return s + `<circle cx="18" cy="18" r="17" fill="${c}18" stroke="${c}" stroke-width="1.5"/><text x="18" y="14" text-anchor="middle" font-size="8" font-family="Inter,sans-serif" fill="${c}" font-weight="700">Na⁺</text><text x="12" y="22" text-anchor="middle" font-size="8" font-family="Inter,sans-serif" fill="${c}" font-weight="700">K⁺</text><text x="24" y="22" text-anchor="middle" font-size="8" font-family="Inter,sans-serif" fill="${c}" font-weight="700">Cl⁻</text><text x="18" y="30" text-anchor="middle" font-size="8" font-family="Inter,sans-serif" fill="${c}" font-weight="700">Mg²⁺</text></svg>`;
+  if (type === 'fatigue') return s + `<circle cx="18" cy="18" r="17" fill="${c}18" stroke="${c}" stroke-width="1.5"/><path d="M10 18 H26" stroke="${c}" stroke-width="2"/><path d="M13 14 L13 22" stroke="${c}" stroke-width="1.5"/><path d="M23 14 L23 22" stroke="${c}" stroke-width="1.5"/><circle cx="18" cy="18" r="3" fill="${c}44" stroke="${c}" stroke-width="1.5"/></svg>`;
+  if (type === 'lungs') return s + `<circle cx="18" cy="18" r="17" fill="${c}18" stroke="${c}" stroke-width="1.5"/><path d="M18 9 L18 20" stroke="${c}" stroke-width="1.5"/><path d="M18 14 C14 14 10 16 10 20 C10 24 12 27 16 27 C16 27 16 22 18 22" fill="${c}33" stroke="${c}" stroke-width="1.5"/><path d="M18 14 C22 14 26 16 26 20 C26 24 24 27 20 27 C20 27 20 22 18 22" fill="${c}33" stroke="${c}" stroke-width="1.5"/></svg>`;
+  if (type === 'gout') return s + `<circle cx="18" cy="18" r="17" fill="${c}18" stroke="${c}" stroke-width="1.5"/><ellipse cx="20" cy="24" rx="8" ry="5" fill="${c}33" stroke="${c}" stroke-width="1.5"/><path d="M14 20 C14 16 22 12 24 16" fill="none" stroke="${c}" stroke-width="1.5"/><circle cx="16" cy="22" r="2" fill="${c}66"/><circle cx="22" cy="23" r="1.5" fill="${c}66"/></svg>`;
+  return s + `<circle cx="18" cy="18" r="17" fill="${c}18" stroke="${c}" stroke-width="1.5"/></svg>`;
+}
+
+// ─── CHART & API STORE ────────────────────────────────────────────────────────
+const chartInstances = {};
+const apiData = {};
+const tabInitialized = {};
+
+// ─── BUILD TABS ───────────────────────────────────────────────────────────────
+const tabNav = document.getElementById('tab-nav');
+const tabContent = document.getElementById('tab-content');
+
+DRUG_DATA.forEach((drug, idx) => {
+  // Tab button
+  const btn = document.createElement('button');
+  btn.className = 'tab-btn' + (idx === 0 ? ' active' : '');
+  btn.style.setProperty('--drug-color', drug.color);
+  btn.dataset.idx = idx;
+  btn.textContent = drug.name;
+  btn.setAttribute('role', 'tab');
+  btn.setAttribute('aria-selected', idx === 0 ? 'true' : 'false');
+  btn.setAttribute('aria-controls', 'panel-' + drug.id);
+  btn.id = 'tab-' + drug.id;
+  tabNav.appendChild(btn);
+
+  // Panel
+  const panel = document.createElement('div');
+  panel.className = 'tab-panel' + (idx === 0 ? ' active' : '');
+  panel.id = 'panel-' + drug.id;
+  panel.setAttribute('role', 'tabpanel');
+  panel.setAttribute('aria-labelledby', 'tab-' + drug.id);
+  panel.style.setProperty('--drug-color', drug.color);
+  panel.innerHTML = buildPanel(drug);
+  tabContent.appendChild(panel);
+});
+
+// Tab switching
+tabNav.addEventListener('click', e => {
+  const btn = e.target.closest('.tab-btn');
+  if (!btn) return;
+  const idx = parseInt(btn.dataset.idx);
+  document.querySelectorAll('.tab-btn').forEach((b, i) => {
+    b.classList.toggle('active', i === idx);
+    b.setAttribute('aria-selected', i === idx ? 'true' : 'false');
+  });
+  document.querySelectorAll('.tab-panel').forEach((p, i) => {
+    p.classList.toggle('active', i === idx);
+  });
+  const drug = DRUG_DATA[idx];
+  if (!tabInitialized[drug.id]) {
+    initChart(drug);
+    tabInitialized[drug.id] = true;
+  }
+});
+
+// Keyboard navigation for tabs
+tabNav.addEventListener('keydown', e => {
+  const btns = [...tabNav.querySelectorAll('.tab-btn')];
+  const current = btns.findIndex(b => b === document.activeElement);
+  if (e.key === 'ArrowRight' || e.key === 'ArrowDown') {
+    e.preventDefault();
+    btns[(current + 1) % btns.length].focus();
+  } else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
+    e.preventDefault();
+    btns[(current - 1 + btns.length) % btns.length].focus();
+  }
+});
+
+// ─── BUILD PANEL HTML ─────────────────────────────────────────────────────────
+function buildPanel(drug) {
+  const c = drug.color;
+  let html = '';
+
+  // Section 1: Drug Header
+  html += `<div class="card">
+    <div class="drug-header-card">
+      <div class="drug-header-info">
+        <h2 style="color:${c}">${drug.name}</h2>
+        <div class="drug-brand"><strong>Brand names:</strong> ${drug.brands}</div>
+        <span class="drug-class-badge" style="background:${c}18;color:${c};border:1.5px solid ${c}55">${drug.cls}</span>
+        <p class="drug-summary">${drug.summary}</p>
+        ${drug.boxedWarning ? `<div class="boxed-warning"><div class="boxed-warning-title">&#9888; ${drug.boxedWarning.title}</div><p>${drug.boxedWarning.text}</p></div>` : ''}
+      </div>
+      <div class="drug-svg-wrap">
+        ${pillSVG(c)}
+        <div style="font-size:11px;color:${c};font-weight:600;margin-top:6px;text-align:center">${drug.cls}</div>
+      </div>
+    </div>
+  </div>`;
+
+  // Section 2: How It Works
+  html += `<div class="card">
+    <div class="card-title">How It Works</div>
+    <div class="mechanism-diagram">${mechanismSVG(drug.mechanism, c)}</div>
+    <p style="font-size:14px;color:#444;line-height:1.7;margin-top:10px">${getMechanismText(drug)}</p>
+    <details class="fda-label-section mt-16" id="fda-details-${drug.id}">
+      <summary>Read Full FDA Label Description</summary>
+      <div class="fda-label-text" id="fda-desc-${drug.id}">
+        <div class="skeleton skel-line full"></div>
+        <div class="skeleton skel-line med"></div>
+        <div class="skeleton skel-line short"></div>
+      </div>
+    </details>
+  </div>`;
+
+  // Section 3: Side Effects
+  html += `<div class="card">
+    <div class="card-title">Side Effects</div>
+    <div class="se-grid">
+      <div class="se-cat">
+        <div class="se-cat-header common">&#10003; Common</div>
+        <div class="se-cat-body">${drug.sideEffects.common.map(e => `<div class="se-item"><span>${e.name}</span><span class="sev-badge sev-${e.sev}">${e.sev}</span></div>`).join('')}</div>
+      </div>
+      <div class="se-cat">
+        <div class="se-cat-header serious">&#9888; Serious</div>
+        <div class="se-cat-body">${drug.sideEffects.serious.map(e => `<div class="se-item"><span>${e.name}</span><span class="sev-badge sev-${e.sev}">${e.sev}</span></div>`).join('')}</div>
+      </div>
+      <div class="se-cat">
+        <div class="se-cat-header rare">&#9888; Rare / Severe</div>
+        <div class="se-cat-body">${drug.sideEffects.rare.map(e => `<div class="se-item"><span>${e.name}</span><span class="sev-badge sev-${e.sev}">${e.sev}</span></div>`).join('')}</div>
+      </div>
+    </div>
+    <div class="se-icons">
+      ${drug.seIcons.map(ic => `<div class="se-icon-card">${seIconSVG(ic.svg, c)}<span>${ic.label}</span></div>`).join('')}
+    </div>
+  </div>`;
+
+  // Section 4: Drug Interactions
+  html += `<div class="card">
+    <div class="card-title">Drug &amp; Food Interactions</div>
+    <div class="interactions-grid">
+      <div class="int-col">
+        <h4 style="color:#991b1b">&#10007; DO NOT Take With</h4>
+        ${drug.interactions.avoid.map(i => `
+          <div class="int-item avoid">
+            <div class="int-name">${i.name}</div>
+            <div class="int-why">${i.why}</div>
+            <span class="risk-badge risk-${i.risk}">${i.risk === 'high' ? 'High Risk' : i.risk === 'mod' ? 'Moderate Risk' : 'Low Risk'}</span>
+          </div>`).join('')}
+      </div>
+      <div class="int-col">
+        <h4 style="color:#92400e">&#9888; Use With Caution</h4>
+        ${drug.interactions.caution.map(i => `
+          <div class="int-item caution">
+            <div class="int-name">${i.name}</div>
+            <div class="int-why">${i.why}</div>
+            <span class="risk-badge risk-${i.risk}">${i.risk === 'high' ? 'High Risk' : i.risk === 'mod' ? 'Moderate Risk' : 'Low Risk'}</span>
+          </div>`).join('')}
+      </div>
+    </div>
+    <div style="margin-top:14px;padding:12px 14px;background:#f0f9ff;border-radius:8px;border-left:4px solid ${c}">
+      <strong style="font-size:13px;color:${c}">&#127828; Food &amp; Drink:</strong>
+      <p style="font-size:13px;color:#444;margin-top:4px">${drug.interactions.food}</p>
+    </div>
+  </div>`;
+
+  // Section 5: Contraindications
+  html += `<div class="card">
+    <div class="card-title">Contraindications</div>
+    <div class="contra-grid">
+      ${drug.contraindications.map(ct => `
+        <div class="contra-item">
+          <div class="contra-icon">&#9888;</div>
+          <div><strong>${ct.title}</strong><p>${ct.desc}</p></div>
+        </div>`).join('')}
+    </div>
+  </div>`;
+
+  // Section 6: Dosage Chart
+  html += `<div class="card">
+    <div class="card-title">Dosage by Body Weight</div>
+    <div class="dose-toggles">
+      <button class="dose-toggle active" data-band="average" data-drug="${drug.id}" style="border-color:${c};color:${c}" onclick="switchBand(this,'${drug.id}','average')">Average Height</button>
+      <button class="dose-toggle" data-band="short" data-drug="${drug.id}" style="border-color:${c};color:${c}" onclick="switchBand(this,'${drug.id}','short')">Short</button>
+      <button class="dose-toggle" data-band="tall" data-drug="${drug.id}" style="border-color:${c};color:${c}" onclick="switchBand(this,'${drug.id}','tall')">Tall</button>
+    </div>
+    <div class="chart-wrap"><canvas id="chart-${drug.id}" aria-label="Dosage chart for ${drug.name}"></canvas></div>
+    <p class="chart-disclaimer">Dosages shown are general reference ranges only. Always follow your prescribing physician's instructions.</p>
+  </div>`;
+
+  // Section 7: Recall History
+  html += `<div class="card">
+    <div class="card-title">
+      Recall History
+      <button class="recall-modal-link" onclick="openModal()" aria-label="Open recall classification guide">? Classification Guide</button>
+    </div>
+    <div id="recalls-${drug.id}">
+      <div style="display:flex;flex-direction:column;gap:8px">
+        ${[1,2,3].map(() => `<div class="skeleton skel-line full" style="height:36px;border-radius:8px"></div>`).join('')}
+      </div>
+    </div>
+  </div>`;
+
+  // Section 8: Adverse Events
+  html += `<div class="card">
+    <div class="card-title">Adverse Event Summary (FDA FAERS)</div>
+    <div id="ae-${drug.id}">
+      <div class="skeleton skel-line short" style="height:44px;width:160px;margin-bottom:12px"></div>
+      ${[1,2,3,4,5].map(() => `<div class="skeleton skel-line full" style="height:20px;margin-bottom:8px"></div>`).join('')}
+    </div>
+  </div>`;
+
+  return html;
+}
+
+// ─── MECHANISM TEXT ───────────────────────────────────────────────────────────
+function getMechanismText(drug) {
+  const m = {
+    lisinopril: "Lisinopril inhibits Angiotensin-Converting Enzyme (ACE), blocking the conversion of Angiotensin I to Angiotensin II in the RAAS cascade. Without Ang II, blood vessels cannot constrict and aldosterone is not released, reducing both vascular resistance and sodium/water retention. This dual effect significantly lowers blood pressure and reduces cardiac workload.",
+    amlodipine: "Amlodipine blocks L-type voltage-gated calcium channels in arterial smooth muscle cells. By preventing calcium influx, it inhibits smooth muscle contraction, causing vasodilation of peripheral arteries and coronary vessels. The result is reduced systemic vascular resistance and lowered blood pressure with minimal effect on heart rate.",
+    losartan: "Losartan selectively and competitively blocks angiotensin II from binding to its AT1 receptor on vascular smooth muscle and the adrenal cortex. Unlike ACE inhibitors, it does not prevent Ang II production, so bradykinin does not accumulate — eliminating the dry cough side effect. It also blocks aldosterone secretion, reducing sodium and water retention.",
+    metoprolol: "Metoprolol selectively blocks β1-adrenergic receptors in cardiac muscle. This reduces chronotropy (heart rate) and inotropy (contractility), lowering cardiac output and oxygen demand. By blocking sympathetic nervous system stimulation of the heart, it reduces blood pressure, prevents angina, and provides cardioprotection after myocardial infarction.",
+    hctz: "Hydrochlorothiazide inhibits the Na⁺/Cl⁻ symporter in the distal convoluted tubule (DCT) of the kidney. By blocking sodium and chloride reabsorption, it increases the excretion of water along with sodium, potassium, and chloride. This reduces circulating blood volume, cardiac preload, and ultimately lowers blood pressure."
+  };
+  return m[drug.id] || '';
+}
+
+// ─── CHART INIT ───────────────────────────────────────────────────────────────
+function initChart(drug) {
+  const ctx = document.getElementById('chart-' + drug.id);
+  if (!ctx) return;
+  const band = 'average';
+  chartInstances[drug.id] = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: WEIGHT_LABELS,
+      datasets: [{
+        label: 'Daily Dose (mg)',
+        data: drug.dosage[band],
+        backgroundColor: drug.color + 'cc',
+        borderColor: drug.color,
+        borderWidth: 2,
+        borderRadius: 6
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          callbacks: {
+            label: ctx => `${ctx.parsed.y} mg/day`
+          }
+        }
+      },
+      scales: {
+        y: {
+          beginAtZero: true,
+          title: { display: true, text: 'Dose (mg/day)', font: { size: 12 } },
+          grid: { color: '#f0f4fa' }
+        },
+        x: {
+          grid: { display: false }
+        }
+      }
+    }
+  });
+}
+
+function switchBand(btn, drugId, band) {
+  const drug = DRUG_DATA.find(d => d.id === drugId);
+  if (!drug) return;
+  const toggles = btn.closest('.dose-toggles').querySelectorAll('.dose-toggle');
+  toggles.forEach(t => {
+    t.classList.toggle('active', t.dataset.band === band);
+    if (t.dataset.band === band) {
+      t.style.background = drug.color;
+      t.style.color = '#fff';
+    } else {
+      t.style.background = '#fff';
+      t.style.color = drug.color;
+    }
+  });
+  if (chartInstances[drugId]) {
+    chartInstances[drugId].data.datasets[0].data = drug.dosage[band];
+    chartInstances[drugId].update();
+  }
+}
+
+// ─── API CALLS ────────────────────────────────────────────────────────────────
+async function fetchAllData() {
+  const promises = DRUG_DATA.map(drug => fetchDrugData(drug));
+  await Promise.allSettled(promises);
+}
+
+async function fetchDrugData(drug) {
+  const name = encodeURIComponent(drug.fdaSearch);
+  try {
+    const [labelRes, recallRes, aeCountRes, aeTopRes] = await Promise.allSettled([
+      fetch(`https://api.fda.gov/drug/label.json?search=openfda.generic_name:"${name}"&limit=1`).then(r => r.json()),
+      fetch(`https://api.fda.gov/drug/enforcement.json?search=openfda.generic_name:"${name}"&limit=5`).then(r => r.json()),
+      fetch(`https://api.fda.gov/drug/event.json?search=patient.drug.medicinalproduct:"${name}"&limit=1`).then(r => r.json()),
+      fetch(`https://api.fda.gov/drug/event.json?search=patient.drug.medicinalproduct:"${name}"&count=patient.reaction.reactionmeddrapt.exact&limit=5`).then(r => r.json())
+    ]);
+
+    // FDA Label
+    const labelEl = document.getElementById('fda-desc-' + drug.id);
+    if (labelRes.status === 'fulfilled' && labelRes.value.results) {
+      const r = labelRes.value.results[0];
+      const text = (r.description || r.indications_and_usage || ['No description available.'])[0];
+      if (labelEl) labelEl.textContent = text;
+    } else {
+      if (labelEl) labelEl.innerHTML = '<div class="error-card">FDA label data unavailable for this drug.</div>';
+    }
+
+    // Recalls
+    renderRecalls(drug, recallRes);
+
+    // Adverse Events
+    renderAE(drug, aeCountRes, aeTopRes);
+
+  } catch(e) {
+    console.warn('Error fetching data for', drug.name, e);
+  }
+}
+
+function renderRecalls(drug, recallRes) {
+  const el = document.getElementById('recalls-' + drug.id);
+  if (!el) return;
+
+  if (recallRes.status === 'fulfilled' && recallRes.value.results && recallRes.value.results.length > 0) {
+    const rows = recallRes.value.results.map(r => {
+      const cls = r.classification || '';
+      let clsBadge = '';
+      if (cls.includes('I')) clsBadge = `<span class="recall-cls cls-i">Class I</span>`;
+      else if (cls.includes('II') && !cls.includes('III')) clsBadge = `<span class="recall-cls cls-ii">Class II</span>`;
+      else if (cls.includes('III')) clsBadge = `<span class="recall-cls cls-iii">Class III</span>`;
+      else clsBadge = `<span class="recall-cls cls-iii">${cls || 'Unknown'}</span>`;
+      const date = r.recall_initiation_date ? r.recall_initiation_date.replace(/(\d{4})(\d{2})(\d{2})/, '$2/$3/$1') : 'N/A';
+      return `<tr>
+        <td>${date}</td>
+        <td>${r.recalling_firm || 'N/A'}</td>
+        <td>${(r.reason_for_recall || 'N/A').substring(0, 120)}${(r.reason_for_recall || '').length > 120 ? '...' : ''}</td>
+        <td>${clsBadge}</td>
+        <td>${r.status || 'N/A'}</td>
+        <td>${r.voluntary_mandated || 'N/A'}</td>
+      </tr>`;
+    }).join('');
+    el.innerHTML = `<div class="table-scroll"><table class="recall-table">
+      <thead><tr><th>Date</th><th>Firm</th><th>Reason</th><th>Class</th><th>Status</th><th>Type</th></tr></thead>
+      <tbody>${rows}</tbody>
+    </table></div>`;
+  } else if (recallRes.status === 'fulfilled' && recallRes.value.error) {
+    el.innerHTML = `<div class="no-recalls">&#10003; No active recalls found for ${drug.name}</div>`;
+  } else if (recallRes.status === 'rejected') {
+    el.innerHTML = `<div class="error-card">Could not load recall data. Please check your connection.</div>`;
+  } else {
+    el.innerHTML = `<div class="no-recalls">&#10003; No active recalls found for ${drug.name}</div>`;
+  }
+}
+
+function renderAE(drug, aeCountRes, aeTopRes) {
+  const el = document.getElementById('ae-' + drug.id);
+  if (!el) return;
+
+  let total = 0;
+  if (aeCountRes.status === 'fulfilled' && aeCountRes.value.meta) {
+    total = aeCountRes.value.meta.results.total || 0;
+  }
+
+  let topReactions = [];
+  if (aeTopRes.status === 'fulfilled' && aeTopRes.value.results) {
+    topReactions = aeTopRes.value.results.slice(0, 5);
+  }
+
+  const maxCount = topReactions.length > 0 ? topReactions[0].count : 1;
+  const totalFormatted = total.toLocaleString();
+
+  let html = `<div class="ae-total">${totalFormatted}</div>
+    <div class="ae-label">Total adverse event reports submitted to FDA FAERS</div>`;
+
+  if (topReactions.length > 0) {
+    html += `<div style="margin-bottom:8px;font-size:13px;font-weight:700;color:var(--primary)">Top 5 Reported Reactions:</div>`;
+    topReactions.forEach(r => {
+      const pct = Math.round((r.count / maxCount) * 100);
+      html += `<div class="ae-bar-row">
+        <div class="ae-reaction-name">${r.term.toLowerCase()}</div>
+        <div class="ae-bar-track"><div class="ae-bar-fill" style="width:${pct}%;background:${drug.color}"></div></div>
+        <div class="ae-count">${r.count.toLocaleString()}</div>
+      </div>`;
+    });
+  } else {
+    html += `<div class="error-card">Reaction breakdown unavailable. Try again later.</div>`;
+  }
+
+  if (aeCountRes.status === 'rejected' && aeTopRes.status === 'rejected') {
+    html = `<div class="error-card">Adverse event data could not be loaded from FDA. Please check your connection.</div>`;
+  }
+
+  html += `<p class="ae-note">Adverse event reports are submitted voluntarily and may not reflect the full safety profile. A report does not necessarily mean the drug caused the event.</p>`;
+  el.innerHTML = html;
+}
+
+// ─── MODAL ────────────────────────────────────────────────────────────────────
+const modalOverlay = document.getElementById('modal-overlay');
+const modalClose = document.getElementById('modal-close');
+const infoBtn = document.getElementById('info-btn');
+
+function openModal() {
+  modalOverlay.classList.add('active');
+  modalOverlay.focus();
+  document.body.style.overflow = 'hidden';
+}
+function closeModal() {
+  modalOverlay.classList.remove('active');
+  document.body.style.overflow = '';
+  infoBtn.focus();
+}
+
+infoBtn.addEventListener('click', openModal);
+modalClose.addEventListener('click', closeModal);
+modalOverlay.addEventListener('click', e => { if (e.target === modalOverlay) closeModal(); });
+document.addEventListener('keydown', e => { if (e.key === 'Escape' && modalOverlay.classList.contains('active')) closeModal(); });
+
+// Focus trap in modal
+modalOverlay.addEventListener('keydown', e => {
+  if (!modalOverlay.classList.contains('active')) return;
+  const focusable = modalOverlay.querySelectorAll('button, [tabindex]:not([tabindex="-1"])');
+  const first = focusable[0], last = focusable[focusable.length - 1];
+  if (e.key === 'Tab') {
+    if (e.shiftKey ? document.activeElement === first : document.activeElement === last) {
+      e.preventDefault();
+      (e.shiftKey ? last : first).focus();
+    }
+  }
+});
+
+// ─── INIT ─────────────────────────────────────────────────────────────────────
+// Set active toggle styles on load
+document.querySelectorAll('.dose-toggle.active').forEach(btn => {
+  const drugId = btn.dataset.drug;
+  const drug = DRUG_DATA.find(d => d.id === drugId);
+  if (drug) {
+    btn.style.background = drug.color;
+    btn.style.color = '#fff';
+  }
+});
+
+// Init first tab chart immediately
+initChart(DRUG_DATA[0]);
+tabInitialized[DRUG_DATA[0].id] = true;
+
+// Fetch all API data
+fetchAllData();
+</script>
+</body>
+</html>
