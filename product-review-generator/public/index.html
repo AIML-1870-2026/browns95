@@ -1,0 +1,732 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Product Review Generator</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet"/>
+<script src="https://cdn.jsdelivr.net/npm/marked@9.1.6/marked.min.js"></script>
+<style>
+/* ── Reset & variables ──────────────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg:         #f4f7fb;
+  --surface:    #ffffff;
+  --surface-2:  #f1f5f9;
+  --border:     #e2e8f0;
+  --text:       #1e293b;
+  --text-muted: #64748b;
+  --accent:     #1a3d7c;
+  --accent-2:   #2563eb;
+  --accent-light: #eff6ff;
+  --danger:     #dc2626;
+  --shadow:     0 1px 3px rgba(0,0,0,.08), 0 4px 12px rgba(0,0,0,.05);
+  --shadow-lg:  0 4px 6px rgba(0,0,0,.07), 0 10px 30px rgba(0,0,0,.1);
+  --radius:     10px;
+  --font: 'Inter', system-ui, sans-serif;
+
+  /* sentiment colours */
+  --s1: #ef4444;
+  --s2: #f97316;
+  --s3: #eab308;
+  --s4: #84cc16;
+  --s5: #22c55e;
+}
+
+[data-theme="dark"] {
+  --bg:         #0f172a;
+  --surface:    #1e293b;
+  --surface-2:  #0f172a;
+  --border:     #334155;
+  --text:       #f1f5f9;
+  --text-muted: #94a3b8;
+  --accent:     #3b82f6;
+  --accent-2:   #60a5fa;
+  --accent-light: rgba(59,130,246,.12);
+  --shadow:     0 1px 3px rgba(0,0,0,.3), 0 4px 12px rgba(0,0,0,.2);
+  --shadow-lg:  0 4px 6px rgba(0,0,0,.3), 0 10px 30px rgba(0,0,0,.4);
+}
+
+html, body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font);
+  min-height: 100vh;
+  transition: background .2s, color .2s;
+}
+
+/* ── Layout ─────────────────────────────────────────────────────────────── */
+header {
+  position: sticky; top: 0; z-index: 50;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  box-shadow: var(--shadow);
+  padding: 0 1.5rem;
+  height: 56px;
+  display: flex; align-items: center; justify-content: space-between;
+}
+
+.header-left {
+  display: flex; align-items: center; gap: .75rem;
+}
+.header-logo {
+  font-size: 1.1rem; font-weight: 700; color: var(--accent);
+  display: flex; align-items: center; gap: .5rem;
+}
+.header-logo svg { flex-shrink: 0; }
+
+.header-right { display: flex; align-items: center; gap: .5rem; }
+
+.icon-btn {
+  background: transparent; border: 1px solid var(--border);
+  border-radius: 8px; width: 36px; height: 36px;
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer; color: var(--text-muted); font-size: 1rem;
+  transition: background .15s, color .15s;
+}
+.icon-btn:hover { background: var(--surface-2); color: var(--text); }
+
+.main-grid {
+  display: grid;
+  grid-template-columns: 380px 1fr;
+  gap: 1.5rem;
+  max-width: 1300px;
+  margin: 0 auto;
+  padding: 1.5rem;
+  align-items: start;
+}
+@media (max-width: 900px) { .main-grid { grid-template-columns: 1fr; } }
+
+/* ── Cards ──────────────────────────────────────────────────────────────── */
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  overflow: hidden;
+}
+.card-header {
+  padding: .9rem 1.25rem;
+  border-bottom: 1px solid var(--border);
+  font-size: .75rem;
+  font-weight: 600;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+.card-body { padding: 1.25rem; display: flex; flex-direction: column; gap: 1.1rem; }
+
+/* ── Form controls ──────────────────────────────────────────────────────── */
+.field { display: flex; flex-direction: column; gap: .4rem; }
+label { font-size: .8rem; font-weight: 600; color: var(--text-muted); }
+label span.required { color: var(--danger); margin-left: 2px; }
+
+select, input[type="text"], textarea {
+  width: 100%;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--text);
+  font-family: var(--font);
+  font-size: .9rem;
+  padding: .55rem .75rem;
+  outline: none;
+  transition: border-color .15s, box-shadow .15s;
+  appearance: none;
+}
+select:focus, input:focus, textarea:focus {
+  border-color: var(--accent-2);
+  box-shadow: 0 0 0 3px rgba(37,99,235,.15);
+}
+select { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath fill='%2364748b' d='M4 6l4 4 4-4'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right .6rem center; background-size: 16px; padding-right: 2rem; cursor: pointer; }
+textarea { resize: vertical; min-height: 80px; }
+.select-hint { font-size: .75rem; color: var(--text-muted); margin-top: .2rem; }
+
+/* ── Sentiment sliders ──────────────────────────────────────────────────── */
+.sliders-section { display: flex; flex-direction: column; gap: .9rem; }
+.slider-row { display: flex; flex-direction: column; gap: .35rem; }
+.slider-label-row {
+  display: flex; justify-content: space-between; align-items: center;
+}
+.slider-aspect { font-size: .8rem; font-weight: 600; color: var(--text); }
+.slider-value-label {
+  font-size: .72rem; font-weight: 600; padding: .15rem .55rem;
+  border-radius: 20px; transition: background .2s, color .2s;
+}
+
+.slider-track-row {
+  display: flex; align-items: center; gap: .6rem;
+}
+.slider-emoji { font-size: 1rem; flex-shrink: 0; user-select: none; }
+
+input[type="range"] {
+  flex: 1; height: 6px; cursor: pointer; padding: 0;
+  background: transparent; border: none; box-shadow: none;
+  -webkit-appearance: none; appearance: none;
+  border-radius: 3px;
+}
+input[type="range"]::-webkit-slider-runnable-track {
+  height: 6px; border-radius: 3px;
+  background: linear-gradient(to right, var(--slider-fill, var(--accent-2)) var(--pct, 50%), var(--border) var(--pct, 50%));
+}
+input[type="range"]::-moz-range-track {
+  height: 6px; border-radius: 3px; background: var(--border);
+}
+input[type="range"]::-moz-range-progress {
+  height: 6px; border-radius: 3px; background: var(--slider-fill, var(--accent-2));
+}
+input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none; appearance: none;
+  width: 18px; height: 18px; border-radius: 50%;
+  background: var(--slider-fill, var(--accent-2));
+  border: 2px solid white;
+  box-shadow: 0 1px 4px rgba(0,0,0,.25);
+  margin-top: -6px;
+  transition: transform .1s;
+}
+input[type="range"]::-webkit-slider-thumb:hover { transform: scale(1.15); }
+input[type="range"]::-moz-range-thumb {
+  width: 18px; height: 18px; border-radius: 50%;
+  background: var(--slider-fill, var(--accent-2));
+  border: 2px solid white; box-shadow: 0 1px 4px rgba(0,0,0,.25);
+}
+
+/* ── Generate button ────────────────────────────────────────────────────── */
+.btn-generate {
+  width: 100%;
+  background: var(--accent);
+  border: none; border-radius: 8px;
+  color: white; font-family: var(--font);
+  font-size: .9rem; font-weight: 600;
+  padding: .7rem 1.25rem;
+  cursor: pointer;
+  display: flex; align-items: center; justify-content: center; gap: .5rem;
+  transition: background .15s, opacity .15s, transform .1s;
+}
+.btn-generate:hover:not(:disabled) { background: var(--accent-2); }
+.btn-generate:active:not(:disabled) { transform: scale(.98); }
+.btn-generate:disabled { opacity: .55; cursor: not-allowed; }
+
+/* ── Output panel ───────────────────────────────────────────────────────── */
+.output-panel { position: sticky; top: 72px; }
+
+.output-toolbar {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: .9rem 1.25rem;
+  border-bottom: 1px solid var(--border);
+}
+.output-title { font-size: .75rem; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--text-muted); }
+.output-actions { display: flex; gap: .4rem; }
+
+.btn-sm {
+  background: var(--surface-2); border: 1px solid var(--border);
+  border-radius: 6px; color: var(--text-muted); font-family: var(--font);
+  font-size: .75rem; font-weight: 500; padding: .3rem .7rem;
+  cursor: pointer; transition: background .15s, color .15s;
+  display: flex; align-items: center; gap: .3rem;
+}
+.btn-sm:hover { background: var(--border); color: var(--text); }
+.btn-sm:disabled { opacity: .4; cursor: not-allowed; }
+
+.output-body {
+  padding: 1.5rem;
+  min-height: 300px;
+  max-height: calc(100vh - 180px);
+  overflow-y: auto;
+}
+
+/* empty / loading / error states */
+.output-empty {
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  gap: .75rem; min-height: 260px;
+  color: var(--text-muted); text-align: center;
+}
+.output-empty svg { opacity: .3; }
+.output-empty p { font-size: .85rem; max-width: 260px; line-height: 1.5; }
+
+.typing-indicator {
+  display: flex; align-items: center; gap: 4px; padding: .5rem 0;
+}
+.typing-indicator span {
+  width: 8px; height: 8px; border-radius: 50%;
+  background: var(--accent-2); display: block;
+  animation: bounce .8s ease-in-out infinite;
+}
+.typing-indicator span:nth-child(2) { animation-delay: .15s; }
+.typing-indicator span:nth-child(3) { animation-delay: .3s; }
+@keyframes bounce {
+  0%,80%,100% { transform: translateY(0); opacity: .6; }
+  40%          { transform: translateY(-6px); opacity: 1; }
+}
+
+.error-banner {
+  background: #fef2f2; border: 1px solid #fecaca;
+  border-radius: 8px; padding: .75rem 1rem;
+  color: #b91c1c; font-size: .85rem;
+  display: flex; align-items: flex-start; gap: .5rem;
+}
+[data-theme="dark"] .error-banner { background: rgba(220,38,38,.1); border-color: rgba(220,38,38,.3); color: #f87171; }
+
+/* ── Markdown output ────────────────────────────────────────────────────── */
+.markdown-output { font-size: .92rem; line-height: 1.7; color: var(--text); }
+.markdown-output h1 { font-size: 1.3rem; font-weight: 700; margin-bottom: .75rem; color: var(--accent); }
+.markdown-output h2 { font-size: 1.05rem; font-weight: 600; margin: 1.25rem 0 .5rem; color: var(--text); border-bottom: 1px solid var(--border); padding-bottom: .3rem; }
+.markdown-output h3 { font-size: .95rem; font-weight: 600; margin: 1rem 0 .4rem; }
+.markdown-output p  { margin-bottom: .75rem; }
+.markdown-output ul, .markdown-output ol { padding-left: 1.4rem; margin-bottom: .75rem; }
+.markdown-output li { margin-bottom: .3rem; }
+.markdown-output strong { font-weight: 600; color: var(--text); }
+.markdown-output em { color: var(--text-muted); }
+.markdown-output code { background: var(--surface-2); border: 1px solid var(--border); border-radius: 4px; font-size: .82rem; padding: .1rem .35rem; }
+.markdown-output blockquote { border-left: 3px solid var(--accent-2); margin: .75rem 0; padding: .4rem .8rem; color: var(--text-muted); background: var(--accent-light); border-radius: 0 6px 6px 0; }
+
+/* ── Meta row ───────────────────────────────────────────────────────────── */
+.output-meta {
+  padding: .6rem 1.25rem;
+  border-top: 1px solid var(--border);
+  font-size: .72rem; color: var(--text-muted);
+  display: flex; gap: 1rem;
+}
+
+/* ── Spinner (button) ───────────────────────────────────────────────────── */
+.spinner {
+  width: 16px; height: 16px; border-radius: 50%;
+  border: 2px solid rgba(255,255,255,.4); border-top-color: white;
+  animation: spin .6s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ── Copied toast ────────────────────────────────────────────────────────── */
+.toast {
+  position: fixed; bottom: 1.5rem; right: 1.5rem;
+  background: #1e293b; color: white;
+  font-size: .8rem; padding: .5rem 1rem;
+  border-radius: 8px; box-shadow: var(--shadow-lg);
+  opacity: 0; transform: translateY(8px);
+  transition: opacity .2s, transform .2s;
+  pointer-events: none; z-index: 200;
+}
+.toast.show { opacity: 1; transform: translateY(0); }
+</style>
+</head>
+<body>
+
+<!-- Header -->
+<header>
+  <div class="header-left">
+    <div class="header-logo">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+      Product Review Generator
+    </div>
+  </div>
+  <div class="header-right">
+    <button class="icon-btn" id="theme-toggle" title="Toggle dark mode" aria-label="Toggle dark mode">🌙</button>
+  </div>
+</header>
+
+<!-- Main layout -->
+<div class="main-grid">
+
+  <!-- ── Left panel: controls ─────────────────────────────────────────── -->
+  <div style="display:flex;flex-direction:column;gap:1.25rem;">
+
+    <!-- Model selection -->
+    <div class="card">
+      <div class="card-header">Model</div>
+      <div class="card-body">
+        <div class="field">
+          <label for="family-select">Model Family</label>
+          <select id="family-select" aria-label="Select model family"></select>
+          <div class="select-hint" id="family-hint"></div>
+        </div>
+        <div class="field">
+          <label for="model-select">Specific Model</label>
+          <select id="model-select" aria-label="Select model"></select>
+        </div>
+      </div>
+    </div>
+
+    <!-- Product info -->
+    <div class="card">
+      <div class="card-header">Product</div>
+      <div class="card-body">
+        <div class="field">
+          <label for="product-name">Product Name <span class="required">*</span></label>
+          <input type="text" id="product-name" placeholder="e.g. Sony WH-1000XM5 Headphones" autocomplete="off"/>
+        </div>
+        <div class="field">
+          <label for="product-desc">Description <span style="font-weight:400;opacity:.7">(optional)</span></label>
+          <textarea id="product-desc" rows="3" placeholder="Brief product description or key specs…"></textarea>
+        </div>
+      </div>
+    </div>
+
+    <!-- Sentiment sliders -->
+    <div class="card">
+      <div class="card-header">Sentiment by Aspect</div>
+      <div class="card-body">
+        <p style="font-size:.8rem;color:var(--text-muted);margin-top:-.3rem;line-height:1.5">
+          Adjust each slider to shape the tone of the review. The model will reflect these sentiments naturally in its writing.
+        </p>
+        <div class="sliders-section" id="sliders-container"></div>
+      </div>
+    </div>
+
+    <!-- Generate -->
+    <button class="btn-generate" id="generate-btn" type="button">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+      Generate Review
+    </button>
+
+  </div>
+
+  <!-- ── Right panel: output ────────────────────────────────────────────── -->
+  <div class="card output-panel">
+    <div class="output-toolbar">
+      <span class="output-title">Generated Review</span>
+      <div class="output-actions">
+        <button class="btn-sm" id="copy-btn" disabled>
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
+          Copy
+        </button>
+        <button class="btn-sm" id="clear-btn" disabled>
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/></svg>
+          Clear
+        </button>
+      </div>
+    </div>
+
+    <div class="output-body" id="output-body">
+      <div class="output-empty" id="output-empty">
+        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+        <p>Fill in the product details, set your sentiment sliders, and click <strong>Generate Review</strong>.</p>
+      </div>
+      <div class="typing-indicator" id="typing-indicator" style="display:none" aria-live="polite" aria-label="Generating review">
+        <span></span><span></span><span></span>
+      </div>
+      <div class="markdown-output" id="markdown-output" style="display:none"></div>
+      <div id="error-area" style="display:none"></div>
+    </div>
+
+    <div class="output-meta" id="output-meta" style="display:none">
+      <span id="meta-words"></span>
+      <span id="meta-tokens"></span>
+      <span id="meta-model"></span>
+    </div>
+  </div>
+
+</div>
+
+<!-- Toast -->
+<div class="toast" id="toast">Copied to clipboard!</div>
+
+<script>
+// ── Configuration ────────────────────────────────────────────────────────────
+const ASPECTS = [
+  { key: 'Price / Value',           emoji: ['💸','😕','😐','😊','🤑'] },
+  { key: 'Features & Functionality',emoji: ['😤','😕','😐','😊','🤩'] },
+  { key: 'Ease of Use',             emoji: ['😫','😕','😐','😊','😎'] },
+  { key: 'Build Quality',           emoji: ['💔','😕','😐','😊','💎'] },
+  { key: 'Customer Support',        emoji: ['😡','😕','😐','😊','🌟'] },
+  { key: 'Overall Design',          emoji: ['🤢','😕','😐','😊','😍'] },
+];
+
+const SENTIMENT_COLORS  = ['#ef4444','#f97316','#eab308','#84cc16','#22c55e'];
+const SENTIMENT_LABELS  = ['Very Negative','Negative','Neutral','Positive','Very Positive'];
+const SENTIMENT_BG      = ['#fef2f2','#fff7ed','#fefce8','#f7fee7','#f0fdf4'];
+const SENTIMENT_TEXT    = ['#b91c1c','#c2410c','#a16207','#4d7c0f','#15803d'];
+const SENTIMENT_BG_DARK = ['rgba(239,68,68,.15)','rgba(249,115,22,.15)','rgba(234,179,8,.15)','rgba(132,204,22,.15)','rgba(34,197,94,.15)'];
+const SENTIMENT_TEXT_DK = ['#f87171','#fb923c','#facc15','#a3e635','#4ade80'];
+
+// ── State ─────────────────────────────────────────────────────────────────────
+let families    = {};
+let generating  = false;
+let rawMarkdown = '';
+
+// ── DOM refs ──────────────────────────────────────────────────────────────────
+const familySelect    = document.getElementById('family-select');
+const modelSelect     = document.getElementById('model-select');
+const familyHint      = document.getElementById('family-hint');
+const productName     = document.getElementById('product-name');
+const productDesc     = document.getElementById('product-desc');
+const slidersContainer= document.getElementById('sliders-container');
+const generateBtn     = document.getElementById('generate-btn');
+const outputEmpty     = document.getElementById('output-empty');
+const typingIndicator = document.getElementById('typing-indicator');
+const markdownOutput  = document.getElementById('markdown-output');
+const errorArea       = document.getElementById('error-area');
+const outputMeta      = document.getElementById('output-meta');
+const metaWords       = document.getElementById('meta-words');
+const metaTokens      = document.getElementById('meta-tokens');
+const metaModel       = document.getElementById('meta-model');
+const copyBtn         = document.getElementById('copy-btn');
+const clearBtn        = document.getElementById('clear-btn');
+const toast           = document.getElementById('toast');
+
+// ── Theme ─────────────────────────────────────────────────────────────────────
+const themeToggle = document.getElementById('theme-toggle');
+const savedTheme  = localStorage.getItem('theme') || 'light';
+if (savedTheme === 'dark') document.documentElement.setAttribute('data-theme','dark');
+themeToggle.textContent = savedTheme === 'dark' ? '☀️' : '🌙';
+
+themeToggle.addEventListener('click', () => {
+  const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+  document.documentElement.setAttribute('data-theme', isDark ? 'light' : 'dark');
+  themeToggle.textContent = isDark ? '🌙' : '☀️';
+  localStorage.setItem('theme', isDark ? 'light' : 'dark');
+  refreshSliderColors();
+});
+
+// ── Load models ───────────────────────────────────────────────────────────────
+async function loadModels() {
+  try {
+    const res = await fetch('/api/models');
+    families = await res.json();
+    populateFamilyDropdown();
+  } catch (e) {
+    familyHint.textContent = 'Could not load models from server.';
+  }
+}
+
+function populateFamilyDropdown() {
+  familySelect.innerHTML = '';
+  Object.keys(families).forEach(name => {
+    const opt = document.createElement('option');
+    opt.value = name; opt.textContent = name;
+    familySelect.appendChild(opt);
+  });
+  onFamilyChange();
+}
+
+function onFamilyChange() {
+  const family = families[familySelect.value];
+  if (!family) return;
+  familyHint.textContent = family.description;
+  modelSelect.innerHTML = '';
+  family.models.forEach(m => {
+    const opt = document.createElement('option');
+    opt.value = m; opt.textContent = m;
+    modelSelect.appendChild(opt);
+  });
+}
+
+familySelect.addEventListener('change', onFamilyChange);
+
+// ── Build sentiment sliders ───────────────────────────────────────────────────
+function buildSliders() {
+  slidersContainer.innerHTML = '';
+  ASPECTS.forEach(({ key, emoji }) => {
+    const defaultVal = 3;
+    const row = document.createElement('div');
+    row.className = 'slider-row';
+    row.innerHTML = `
+      <div class="slider-label-row">
+        <span class="slider-aspect">${key}</span>
+        <span class="slider-value-label" id="lbl-${key.replace(/\W+/g,'-')}"></span>
+      </div>
+      <div class="slider-track-row">
+        <span class="slider-emoji" id="emj-${key.replace(/\W+/g,'-')}">${emoji[defaultVal-1]}</span>
+        <input type="range" min="1" max="5" value="${defaultVal}"
+               id="slider-${key.replace(/\W+/g,'-')}"
+               aria-label="${key} sentiment"/>
+        <span class="slider-emoji">${emoji[4]}</span>
+      </div>
+    `;
+    slidersContainer.appendChild(row);
+
+    const slider = row.querySelector('input[type="range"]');
+    updateSlider(slider, key, emoji, defaultVal);
+    slider.addEventListener('input', () => updateSlider(slider, key, emoji, parseInt(slider.value)));
+  });
+}
+
+function updateSlider(slider, key, emoji, value) {
+  const safeKey = key.replace(/\W+/g,'-');
+  const lbl = document.getElementById(`lbl-${safeKey}`);
+  const emj = document.getElementById(`emj-${safeKey}`);
+  const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+  const pct = ((value - 1) / 4) * 100;
+
+  slider.style.setProperty('--slider-fill', SENTIMENT_COLORS[value-1]);
+  slider.style.setProperty('--pct', pct + '%');
+
+  if (lbl) {
+    lbl.textContent = SENTIMENT_LABELS[value-1];
+    lbl.style.background = isDark ? SENTIMENT_BG_DARK[value-1] : SENTIMENT_BG[value-1];
+    lbl.style.color = isDark ? SENTIMENT_TEXT_DK[value-1] : SENTIMENT_TEXT[value-1];
+  }
+  if (emj) emj.textContent = emoji[value-1];
+}
+
+function refreshSliderColors() {
+  ASPECTS.forEach(({ key, emoji }) => {
+    const safeKey = key.replace(/\W+/g,'-');
+    const slider = document.getElementById(`slider-${safeKey}`);
+    if (slider) updateSlider(slider, key, emoji, parseInt(slider.value));
+  });
+}
+
+function getSentiments() {
+  const out = {};
+  ASPECTS.forEach(({ key }) => {
+    const safeKey = key.replace(/\W+/g,'-');
+    const slider = document.getElementById(`slider-${safeKey}`);
+    if (slider) out[key] = parseInt(slider.value);
+  });
+  return out;
+}
+
+// ── Generate ──────────────────────────────────────────────────────────────────
+generateBtn.addEventListener('click', generate);
+productName.addEventListener('keydown', e => { if (e.key === 'Enter' && !e.shiftKey) generate(); });
+
+async function generate() {
+  if (generating) return;
+
+  const product = productName.value.trim();
+  if (!product) {
+    productName.focus();
+    productName.style.borderColor = 'var(--danger)';
+    setTimeout(() => productName.style.borderColor = '', 1500);
+    return;
+  }
+
+  generating   = true;
+  rawMarkdown  = '';
+
+  // UI: loading state
+  outputEmpty.style.display     = 'none';
+  markdownOutput.style.display  = 'none';
+  errorArea.style.display       = 'none';
+  typingIndicator.style.display = 'flex';
+  outputMeta.style.display      = 'none';
+  copyBtn.disabled = true;
+  clearBtn.disabled = true;
+
+  generateBtn.disabled = true;
+  generateBtn.innerHTML = '<div class="spinner"></div> Generating…';
+
+  try {
+    const response = await fetch('/api/generate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model:       modelSelect.value,
+        product,
+        description: productDesc.value.trim(),
+        sentiments:  getSentiments(),
+      }),
+    });
+
+    if (!response.ok) {
+      const err = await response.json();
+      showError(err.error || `Server error ${response.status}`);
+      return;
+    }
+
+    const reader  = response.body.getReader();
+    const decoder = new TextDecoder();
+
+    typingIndicator.style.display = 'none';
+    markdownOutput.style.display  = 'block';
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+
+      const chunk = decoder.decode(value, { stream: true });
+      const lines = chunk.split('\n').filter(l => l.startsWith('data: '));
+
+      for (const line of lines) {
+        const payload = line.slice(6).trim();
+        if (payload === '[DONE]') continue;
+        try {
+          const parsed = JSON.parse(payload);
+          if (parsed.error) { showError(parsed.error); return; }
+          if (parsed.content) {
+            rawMarkdown += parsed.content;
+            markdownOutput.innerHTML = marked.parse(rawMarkdown);
+            // Auto-scroll to bottom
+            const ob = document.getElementById('output-body');
+            ob.scrollTop = ob.scrollHeight;
+          }
+        } catch {}
+      }
+    }
+
+    // Final render pass
+    markdownOutput.innerHTML = marked.parse(rawMarkdown);
+
+    // Meta
+    const words  = rawMarkdown.trim().split(/\s+/).filter(Boolean).length;
+    const tokens = Math.round(rawMarkdown.length / 4);
+    metaWords.textContent  = `${words} words`;
+    metaTokens.textContent = `~${tokens} tokens`;
+    metaModel.textContent  = `model: ${modelSelect.value}`;
+    outputMeta.style.display = 'flex';
+    copyBtn.disabled  = false;
+    clearBtn.disabled = false;
+
+  } catch (err) {
+    showError('Request failed: ' + err.message);
+  } finally {
+    generating = false;
+    typingIndicator.style.display = 'none';
+    generateBtn.disabled = false;
+    generateBtn.innerHTML = `
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+      Generate Review`;
+  }
+}
+
+function showError(msg) {
+  typingIndicator.style.display = 'none';
+  markdownOutput.style.display  = 'none';
+  errorArea.style.display       = 'block';
+  errorArea.innerHTML = `
+    <div class="error-banner" role="alert">
+      <svg width="16" height="16" style="flex-shrink:0;margin-top:1px" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+      <span>${escapeHtml(msg)}</span>
+    </div>`;
+}
+
+function escapeHtml(s) {
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+// ── Copy & Clear ──────────────────────────────────────────────────────────────
+copyBtn.addEventListener('click', async () => {
+  if (!rawMarkdown) return;
+  try {
+    await navigator.clipboard.writeText(rawMarkdown);
+    showToast('Copied to clipboard!');
+  } catch {
+    showToast('Copy failed — select text manually.');
+  }
+});
+
+clearBtn.addEventListener('click', () => {
+  rawMarkdown = '';
+  markdownOutput.innerHTML = '';
+  markdownOutput.style.display = 'none';
+  errorArea.style.display = 'none';
+  outputMeta.style.display = 'none';
+  outputEmpty.style.display = 'flex';
+  copyBtn.disabled = true;
+  clearBtn.disabled = true;
+});
+
+function showToast(msg) {
+  toast.textContent = msg;
+  toast.classList.add('show');
+  setTimeout(() => toast.classList.remove('show'), 2200);
+}
+
+// ── Init ──────────────────────────────────────────────────────────────────────
+buildSliders();
+loadModels();
+</script>
+</body>
+</html>
