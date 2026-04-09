@@ -1,0 +1,594 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Product Review Generator</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet"/>
+<script src="https://cdn.jsdelivr.net/npm/marked@9.1.6/marked.min.js"></script>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg:          #f4f7fb;
+  --surface:     #ffffff;
+  --surface-2:   #f1f5f9;
+  --border:      #e2e8f0;
+  --text:        #1e293b;
+  --text-muted:  #64748b;
+  --accent:      #1a3d7c;
+  --accent-2:    #2563eb;
+  --accent-light:#eff6ff;
+  --danger:      #dc2626;
+  --shadow:      0 1px 3px rgba(0,0,0,.08), 0 4px 12px rgba(0,0,0,.05);
+  --radius:      10px;
+  --font:        'Inter', system-ui, sans-serif;
+}
+[data-theme="dark"] {
+  --bg:          #0f172a;
+  --surface:     #1e293b;
+  --surface-2:   #0f172a;
+  --border:      #334155;
+  --text:        #f1f5f9;
+  --text-muted:  #94a3b8;
+  --accent:      #3b82f6;
+  --accent-2:    #60a5fa;
+  --accent-light:rgba(59,130,246,.12);
+  --shadow:      0 1px 3px rgba(0,0,0,.3), 0 4px 12px rgba(0,0,0,.2);
+}
+
+html, body { background: var(--bg); color: var(--text); font-family: var(--font); min-height: 100vh; transition: background .2s, color .2s; }
+
+/* ── Header ── */
+header {
+  position: sticky; top: 0; z-index: 50;
+  background: var(--surface); border-bottom: 1px solid var(--border);
+  box-shadow: var(--shadow); padding: 0 1.5rem; height: 56px;
+  display: flex; align-items: center; justify-content: space-between;
+}
+.header-logo { font-size: 1.05rem; font-weight: 700; color: var(--accent); display: flex; align-items: center; gap: .5rem; }
+.header-right { display: flex; align-items: center; gap: .5rem; }
+.icon-btn {
+  background: transparent; border: 1px solid var(--border); border-radius: 8px;
+  width: 36px; height: 36px; display: flex; align-items: center; justify-content: center;
+  cursor: pointer; color: var(--text-muted); font-size: 1rem; transition: background .15s;
+}
+.icon-btn:hover { background: var(--surface-2); color: var(--text); }
+
+/* ── API key banner ── */
+#key-banner {
+  background: var(--accent-light); border-bottom: 1px solid var(--border);
+  padding: .6rem 1.5rem; display: flex; align-items: center; gap: .75rem; flex-wrap: wrap;
+}
+.key-banner-label { font-size: .8rem; font-weight: 600; color: var(--accent); white-space: nowrap; }
+.key-input-wrap { display: flex; gap: .4rem; flex: 1; min-width: 260px; }
+.key-input-wrap input {
+  flex: 1; background: var(--surface); border: 1px solid var(--border); border-radius: 8px;
+  color: var(--text); font-family: var(--font); font-size: .82rem; padding: .4rem .75rem; outline: none;
+  transition: border-color .15s;
+}
+.key-input-wrap input:focus { border-color: var(--accent-2); }
+.key-input-wrap button {
+  background: var(--surface); border: 1px solid var(--border); border-radius: 8px;
+  color: var(--text-muted); font-size: .75rem; padding: .4rem .65rem; cursor: pointer;
+  transition: background .15s;
+}
+.key-input-wrap button:hover { background: var(--surface-2); }
+.key-status { font-size: .75rem; color: var(--text-muted); }
+.key-status.ok { color: #16a34a; }
+.key-status.err { color: var(--danger); }
+#clear-key-btn {
+  font-size: .75rem; background: transparent; border: 1px solid var(--border);
+  border-radius: 6px; color: var(--text-muted); padding: .35rem .65rem; cursor: pointer;
+}
+#clear-key-btn:hover { background: var(--surface-2); }
+
+/* ── Layout ── */
+.main-grid {
+  display: grid; grid-template-columns: 380px 1fr; gap: 1.5rem;
+  max-width: 1300px; margin: 0 auto; padding: 1.5rem; align-items: start;
+}
+@media (max-width: 900px) { .main-grid { grid-template-columns: 1fr; } }
+
+/* ── Cards ── */
+.card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow); overflow: hidden; }
+.card-header { padding: .9rem 1.25rem; border-bottom: 1px solid var(--border); font-size: .72rem; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--text-muted); }
+.card-body { padding: 1.25rem; display: flex; flex-direction: column; gap: 1.1rem; }
+
+/* ── Form ── */
+.field { display: flex; flex-direction: column; gap: .4rem; }
+label { font-size: .8rem; font-weight: 600; color: var(--text-muted); }
+label .req { color: var(--danger); margin-left: 2px; }
+
+select, input[type="text"], textarea {
+  width: 100%; background: var(--surface-2); border: 1px solid var(--border); border-radius: 8px;
+  color: var(--text); font-family: var(--font); font-size: .9rem; padding: .55rem .75rem; outline: none;
+  transition: border-color .15s, box-shadow .15s; appearance: none;
+}
+select { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath fill='%2364748b' d='M4 6l4 4 4-4'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right .6rem center; background-size: 16px; padding-right: 2rem; cursor: pointer; }
+select:focus, input:focus, textarea:focus { border-color: var(--accent-2); box-shadow: 0 0 0 3px rgba(37,99,235,.15); }
+textarea { resize: vertical; min-height: 80px; }
+.hint { font-size: .72rem; color: var(--text-muted); margin-top: .15rem; }
+
+/* ── Sliders ── */
+.sliders-section { display: flex; flex-direction: column; gap: .9rem; }
+.slider-row { display: flex; flex-direction: column; gap: .35rem; }
+.slider-label-row { display: flex; justify-content: space-between; align-items: center; }
+.slider-aspect { font-size: .8rem; font-weight: 600; }
+.slider-value-label { font-size: .72rem; font-weight: 600; padding: .15rem .55rem; border-radius: 20px; transition: background .2s, color .2s; }
+.slider-track-row { display: flex; align-items: center; gap: .6rem; }
+.slider-emoji { font-size: 1rem; flex-shrink: 0; user-select: none; }
+
+input[type="range"] {
+  flex: 1; height: 6px; cursor: pointer; padding: 0;
+  background: transparent; border: none; box-shadow: none;
+  -webkit-appearance: none; appearance: none; border-radius: 3px;
+}
+input[type="range"]::-webkit-slider-runnable-track {
+  height: 6px; border-radius: 3px;
+  background: linear-gradient(to right, var(--slider-fill, #2563eb) var(--pct,50%), var(--border) var(--pct,50%));
+}
+input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none; width: 18px; height: 18px; border-radius: 50%;
+  background: var(--slider-fill, #2563eb); border: 2px solid white;
+  box-shadow: 0 1px 4px rgba(0,0,0,.25); margin-top: -6px; transition: transform .1s;
+}
+input[type="range"]::-webkit-slider-thumb:hover { transform: scale(1.15); }
+
+/* ── Button ── */
+.btn-generate {
+  width: 100%; background: var(--accent); border: none; border-radius: 8px;
+  color: white; font-family: var(--font); font-size: .9rem; font-weight: 600;
+  padding: .7rem 1.25rem; cursor: pointer;
+  display: flex; align-items: center; justify-content: center; gap: .5rem;
+  transition: background .15s, transform .1s;
+}
+.btn-generate:hover:not(:disabled) { background: var(--accent-2); }
+.btn-generate:active:not(:disabled) { transform: scale(.98); }
+.btn-generate:disabled { opacity: .55; cursor: not-allowed; }
+
+/* ── Output ── */
+.output-panel { position: sticky; top: 100px; }
+.output-toolbar { display: flex; align-items: center; justify-content: space-between; padding: .9rem 1.25rem; border-bottom: 1px solid var(--border); }
+.output-title { font-size: .72rem; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--text-muted); }
+.output-actions { display: flex; gap: .4rem; }
+.btn-sm {
+  background: var(--surface-2); border: 1px solid var(--border); border-radius: 6px;
+  color: var(--text-muted); font-family: var(--font); font-size: .75rem; font-weight: 500;
+  padding: .3rem .7rem; cursor: pointer; transition: background .15s;
+  display: flex; align-items: center; gap: .3rem;
+}
+.btn-sm:hover { background: var(--border); color: var(--text); }
+.btn-sm:disabled { opacity: .4; cursor: not-allowed; }
+.output-body { padding: 1.5rem; min-height: 300px; max-height: calc(100vh - 220px); overflow-y: auto; }
+.output-empty { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: .75rem; min-height: 260px; color: var(--text-muted); text-align: center; }
+.output-empty svg { opacity: .25; }
+.output-empty p { font-size: .85rem; max-width: 260px; line-height: 1.5; }
+
+.typing-indicator { display: flex; align-items: center; gap: 4px; padding: .5rem 0; }
+.typing-indicator span { width: 8px; height: 8px; border-radius: 50%; background: var(--accent-2); animation: bounce .8s ease-in-out infinite; }
+.typing-indicator span:nth-child(2) { animation-delay: .15s; }
+.typing-indicator span:nth-child(3) { animation-delay: .3s; }
+@keyframes bounce { 0%,80%,100% { transform: translateY(0); opacity: .6; } 40% { transform: translateY(-6px); opacity: 1; } }
+
+.error-banner { background: #fef2f2; border: 1px solid #fecaca; border-radius: 8px; padding: .75rem 1rem; color: #b91c1c; font-size: .85rem; display: flex; align-items: flex-start; gap: .5rem; }
+[data-theme="dark"] .error-banner { background: rgba(220,38,38,.1); border-color: rgba(220,38,38,.3); color: #f87171; }
+
+.markdown-output { font-size: .92rem; line-height: 1.7; }
+.markdown-output h1 { font-size: 1.25rem; font-weight: 700; margin-bottom: .75rem; color: var(--accent); }
+.markdown-output h2 { font-size: 1rem; font-weight: 600; margin: 1.25rem 0 .5rem; border-bottom: 1px solid var(--border); padding-bottom: .3rem; }
+.markdown-output h3 { font-size: .95rem; font-weight: 600; margin: 1rem 0 .4rem; }
+.markdown-output p  { margin-bottom: .75rem; }
+.markdown-output ul, .markdown-output ol { padding-left: 1.4rem; margin-bottom: .75rem; }
+.markdown-output li { margin-bottom: .3rem; }
+.markdown-output strong { font-weight: 600; }
+.markdown-output blockquote { border-left: 3px solid var(--accent-2); margin: .75rem 0; padding: .4rem .8rem; color: var(--text-muted); background: var(--accent-light); border-radius: 0 6px 6px 0; }
+
+.output-meta { padding: .6rem 1.25rem; border-top: 1px solid var(--border); font-size: .72rem; color: var(--text-muted); display: flex; gap: 1rem; flex-wrap: wrap; }
+
+.spinner { width: 16px; height: 16px; border-radius: 50%; border: 2px solid rgba(255,255,255,.4); border-top-color: white; animation: spin .6s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.toast { position: fixed; bottom: 1.5rem; right: 1.5rem; background: #1e293b; color: white; font-size: .8rem; padding: .5rem 1rem; border-radius: 8px; box-shadow: 0 4px 20px rgba(0,0,0,.2); opacity: 0; transform: translateY(8px); transition: opacity .2s, transform .2s; pointer-events: none; z-index: 200; }
+.toast.show { opacity: 1; transform: translateY(0); }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="header-logo">
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+    Product Review Generator
+  </div>
+  <div class="header-right">
+    <button class="icon-btn" id="theme-toggle" title="Toggle dark mode">🌙</button>
+  </div>
+</header>
+
+<!-- API key entry -->
+<div id="key-banner">
+  <span class="key-banner-label">🔑 OpenAI API Key</span>
+  <div class="key-input-wrap">
+    <input type="password" id="key-input" placeholder="sk-…  (held in memory only, never stored)" autocomplete="off" spellcheck="false"/>
+    <button id="key-show-btn" title="Show / hide key">👁</button>
+  </div>
+  <span class="key-status" id="key-status">No key set</span>
+  <button id="clear-key-btn">Clear</button>
+</div>
+
+<div class="main-grid">
+
+  <!-- Left: controls -->
+  <div style="display:flex;flex-direction:column;gap:1.25rem">
+
+    <div class="card">
+      <div class="card-header">Model</div>
+      <div class="card-body">
+        <div class="field">
+          <label for="family-select">Model Family</label>
+          <select id="family-select"></select>
+          <div class="hint" id="family-hint"></div>
+        </div>
+        <div class="field">
+          <label for="model-select">Specific Model</label>
+          <select id="model-select"></select>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header">Product</div>
+      <div class="card-body">
+        <div class="field">
+          <label for="product-name">Product Name <span class="req">*</span></label>
+          <input type="text" id="product-name" placeholder="e.g. Sony WH-1000XM5 Headphones" autocomplete="off"/>
+        </div>
+        <div class="field">
+          <label for="product-desc">Description <span style="font-weight:400;opacity:.7">(optional)</span></label>
+          <textarea id="product-desc" rows="3" placeholder="Brief description or key specs…"></textarea>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header">Sentiment by Aspect</div>
+      <div class="card-body">
+        <p style="font-size:.8rem;color:var(--text-muted);line-height:1.5;margin-top:-.25rem">Adjust each slider to shape the tone. The model will reflect these sentiments naturally.</p>
+        <div class="sliders-section" id="sliders-container"></div>
+      </div>
+    </div>
+
+    <button class="btn-generate" id="generate-btn">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+      Generate Review
+    </button>
+
+  </div>
+
+  <!-- Right: output -->
+  <div class="card output-panel">
+    <div class="output-toolbar">
+      <span class="output-title">Generated Review</span>
+      <div class="output-actions">
+        <button class="btn-sm" id="copy-btn" disabled>
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
+          Copy
+        </button>
+        <button class="btn-sm" id="clear-btn" disabled>
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/></svg>
+          Clear
+        </button>
+      </div>
+    </div>
+
+    <div class="output-body" id="output-body">
+      <div class="output-empty" id="output-empty">
+        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+        <p>Enter your API key, fill in the product details, set your sentiment sliders, and click <strong>Generate Review</strong>.</p>
+      </div>
+      <div class="typing-indicator" id="typing-indicator" style="display:none" aria-live="polite">
+        <span></span><span></span><span></span>
+      </div>
+      <div class="markdown-output" id="markdown-output" style="display:none"></div>
+      <div id="error-area" style="display:none"></div>
+    </div>
+
+    <div class="output-meta" id="output-meta" style="display:none">
+      <span id="meta-words"></span>
+      <span id="meta-tokens"></span>
+      <span id="meta-model"></span>
+    </div>
+  </div>
+
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ── Model families ────────────────────────────────────────────────────────────
+const MODEL_FAMILIES = {
+  'GPT-4o':          { description: 'Flagship multimodal — best quality',   models: ['gpt-4o', 'gpt-4o-mini'] },
+  'GPT-4 Turbo':     { description: 'High capability, fast throughput',      models: ['gpt-4-turbo'] },
+  'GPT-4':           { description: 'Highly capable baseline',               models: ['gpt-4'] },
+  'GPT-3.5':         { description: 'Fast and cost-efficient',               models: ['gpt-3.5-turbo'] },
+  'o1 (Reasoning)':  { description: 'Advanced multi-step reasoning',         models: ['o1', 'o1-mini'] },
+};
+
+// ── Sentiment config ──────────────────────────────────────────────────────────
+const ASPECTS = [
+  { key: 'Price / Value',            emoji: ['💸','😕','😐','😊','🤑'] },
+  { key: 'Features & Functionality', emoji: ['😤','😕','😐','😊','🤩'] },
+  { key: 'Ease of Use',              emoji: ['😫','😕','😐','😊','😎'] },
+  { key: 'Build Quality',            emoji: ['💔','😕','😐','😊','💎'] },
+  { key: 'Customer Support',         emoji: ['😡','😕','😐','😊','🌟'] },
+  { key: 'Overall Design',           emoji: ['🤢','😕','😐','😊','😍'] },
+];
+const S_COLORS  = ['#ef4444','#f97316','#eab308','#84cc16','#22c55e'];
+const S_LABELS  = ['Very Negative','Negative','Neutral','Positive','Very Positive'];
+const S_BG      = ['#fef2f2','#fff7ed','#fefce8','#f7fee7','#f0fdf4'];
+const S_FG      = ['#b91c1c','#c2410c','#a16207','#4d7c0f','#15803d'];
+const S_BG_DK   = ['rgba(239,68,68,.15)','rgba(249,115,22,.15)','rgba(234,179,8,.15)','rgba(132,204,22,.15)','rgba(34,197,94,.15)'];
+const S_FG_DK   = ['#f87171','#fb923c','#facc15','#a3e635','#4ade80'];
+
+// ── In-memory API key (never written anywhere) ────────────────────────────────
+let apiKey      = '';
+let generating  = false;
+let rawMarkdown = '';
+
+// ── DOM refs ──────────────────────────────────────────────────────────────────
+const keyInput      = document.getElementById('key-input');
+const keyShowBtn    = document.getElementById('key-show-btn');
+const keyStatus     = document.getElementById('key-status');
+const clearKeyBtn   = document.getElementById('clear-key-btn');
+const familySelect  = document.getElementById('family-select');
+const modelSelect   = document.getElementById('model-select');
+const familyHint    = document.getElementById('family-hint');
+const productName   = document.getElementById('product-name');
+const productDesc   = document.getElementById('product-desc');
+const slidersContainer = document.getElementById('sliders-container');
+const generateBtn   = document.getElementById('generate-btn');
+const outputEmpty   = document.getElementById('output-empty');
+const typingEl      = document.getElementById('typing-indicator');
+const markdownEl    = document.getElementById('markdown-output');
+const errorArea     = document.getElementById('error-area');
+const outputMeta    = document.getElementById('output-meta');
+const metaWords     = document.getElementById('meta-words');
+const metaTokens    = document.getElementById('meta-tokens');
+const metaModel     = document.getElementById('meta-model');
+const copyBtn       = document.getElementById('copy-btn');
+const clearBtn      = document.getElementById('clear-btn');
+const toast         = document.getElementById('toast');
+
+// ── Theme ─────────────────────────────────────────────────────────────────────
+const themeBtn = document.getElementById('theme-toggle');
+const saved = localStorage.getItem('prg-theme') || 'light';
+if (saved === 'dark') document.documentElement.setAttribute('data-theme','dark');
+themeBtn.textContent = saved === 'dark' ? '☀️' : '🌙';
+themeBtn.addEventListener('click', () => {
+  const dark = document.documentElement.getAttribute('data-theme') === 'dark';
+  document.documentElement.setAttribute('data-theme', dark ? 'light' : 'dark');
+  themeBtn.textContent = dark ? '🌙' : '☀️';
+  localStorage.setItem('prg-theme', dark ? 'light' : 'dark');
+  refreshSliderColors();
+});
+
+// ── API key management ────────────────────────────────────────────────────────
+keyInput.addEventListener('input', () => {
+  apiKey = keyInput.value.trim();
+  if (apiKey.startsWith('sk-') && apiKey.length > 20) {
+    keyStatus.textContent = '✓ Key set';
+    keyStatus.className = 'key-status ok';
+  } else if (apiKey.length > 0) {
+    keyStatus.textContent = 'Key looks incomplete';
+    keyStatus.className = 'key-status err';
+  } else {
+    keyStatus.textContent = 'No key set';
+    keyStatus.className = 'key-status';
+  }
+});
+keyShowBtn.addEventListener('click', () => {
+  keyInput.type = keyInput.type === 'password' ? 'text' : 'password';
+});
+clearKeyBtn.addEventListener('click', () => {
+  apiKey = ''; keyInput.value = '';
+  keyStatus.textContent = 'No key set';
+  keyStatus.className = 'key-status';
+});
+
+// ── Models ────────────────────────────────────────────────────────────────────
+Object.keys(MODEL_FAMILIES).forEach(name => {
+  const opt = document.createElement('option');
+  opt.value = name; opt.textContent = name;
+  familySelect.appendChild(opt);
+});
+function onFamilyChange() {
+  const fam = MODEL_FAMILIES[familySelect.value];
+  familyHint.textContent = fam.description;
+  modelSelect.innerHTML = '';
+  fam.models.forEach(m => {
+    const opt = document.createElement('option');
+    opt.value = m; opt.textContent = m;
+    modelSelect.appendChild(opt);
+  });
+}
+familySelect.addEventListener('change', onFamilyChange);
+onFamilyChange();
+
+// ── Sliders ───────────────────────────────────────────────────────────────────
+function buildSliders() {
+  slidersContainer.innerHTML = '';
+  ASPECTS.forEach(({ key, emoji }) => {
+    const id  = 'sl-' + key.replace(/\W+/g,'-');
+    const row = document.createElement('div');
+    row.className = 'slider-row';
+    row.innerHTML = `
+      <div class="slider-label-row">
+        <span class="slider-aspect">${key}</span>
+        <span class="slider-value-label" id="lbl-${id}"></span>
+      </div>
+      <div class="slider-track-row">
+        <span class="slider-emoji" id="emj-${id}"></span>
+        <input type="range" min="1" max="5" value="3" id="${id}" aria-label="${key} sentiment"/>
+        <span class="slider-emoji">${emoji[4]}</span>
+      </div>`;
+    slidersContainer.appendChild(row);
+    const slider = row.querySelector('input');
+    updateSlider(slider, key, emoji, 3);
+    slider.addEventListener('input', () => updateSlider(slider, key, emoji, +slider.value));
+  });
+}
+function updateSlider(slider, key, emoji, v) {
+  const id  = 'sl-' + key.replace(/\W+/g,'-');
+  const lbl = document.getElementById(`lbl-${id}`);
+  const emj = document.getElementById(`emj-${id}`);
+  const dark = document.documentElement.getAttribute('data-theme') === 'dark';
+  const pct  = ((v-1)/4)*100;
+  slider.style.setProperty('--slider-fill', S_COLORS[v-1]);
+  slider.style.setProperty('--pct', pct + '%');
+  if (lbl) { lbl.textContent = S_LABELS[v-1]; lbl.style.background = dark ? S_BG_DK[v-1] : S_BG[v-1]; lbl.style.color = dark ? S_FG_DK[v-1] : S_FG[v-1]; }
+  if (emj) emj.textContent = emoji[v-1];
+}
+function refreshSliderColors() {
+  ASPECTS.forEach(({ key, emoji }) => {
+    const id = 'sl-' + key.replace(/\W+/g,'-');
+    const sl = document.getElementById(id);
+    if (sl) updateSlider(sl, key, emoji, +sl.value);
+  });
+}
+function getSentiments() {
+  const out = {};
+  ASPECTS.forEach(({ key }) => {
+    const sl = document.getElementById('sl-' + key.replace(/\W+/g,'-'));
+    if (sl) out[key] = +sl.value;
+  });
+  return out;
+}
+
+// ── Generate ──────────────────────────────────────────────────────────────────
+generateBtn.addEventListener('click', generate);
+productName.addEventListener('keydown', e => { if (e.key === 'Enter') generate(); });
+
+async function generate() {
+  if (generating) return;
+  if (!apiKey) { showToast('Please enter your OpenAI API key above.'); keyInput.focus(); return; }
+  const product = productName.value.trim();
+  if (!product) {
+    productName.style.borderColor = 'var(--danger)';
+    setTimeout(() => productName.style.borderColor = '', 1500);
+    productName.focus(); return;
+  }
+
+  generating  = true;
+  rawMarkdown = '';
+
+  outputEmpty.style.display  = 'none';
+  markdownEl.style.display   = 'none';
+  errorArea.style.display    = 'none';
+  typingEl.style.display     = 'flex';
+  outputMeta.style.display   = 'none';
+  copyBtn.disabled = true;
+  clearBtn.disabled = true;
+  generateBtn.disabled = true;
+  generateBtn.innerHTML = '<div class="spinner"></div> Generating…';
+
+  const SENTIMENT_DESCS = ['very dissatisfied — serious problems here','dissatisfied — below expectations','neutral — neither impressed nor disappointed','satisfied — genuinely pleased','very satisfied — exceeded expectations'];
+  const sentiments  = getSentiments();
+  const sentLines   = Object.entries(sentiments).map(([k,v]) => `  • ${k}: ${SENTIMENT_DESCS[v-1]}`).join('\n');
+  const model       = modelSelect.value;
+  const isO1        = model.startsWith('o1');
+
+  const systemPrompt = 'You are a realistic, opinionated product reviewer. Write authentic reviews that sound like a real person sharing their experience — not marketing copy. Use markdown: a bold title on the first line, then ## headers for each aspect, bullet points for specific observations, and a ## Verdict section at the end.';
+  const userPrompt   = `Write a product review for: **${product}**${productDesc.value.trim() ? '\n\nProduct description: ' + productDesc.value.trim() : ''}\n\nSentiment per aspect (reflect these naturally — do not just list them):\n${sentLines}\n\nAim for 250–400 words. Be specific and conversational.`;
+
+  const messages = isO1
+    ? [{ role: 'user', content: systemPrompt + '\n\n' + userPrompt }]
+    : [{ role: 'system', content: systemPrompt }, { role: 'user', content: userPrompt }];
+
+  const body = { model, messages, stream: true, ...(isO1 ? { max_completion_tokens: 1024 } : { temperature: 0.85, max_tokens: 1024 }) };
+
+  try {
+    const res = await fetch('https://api.openai.com/v1/chat/completions', {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      const msg = err?.error?.message || `OpenAI error ${res.status}`;
+      const friendly = res.status===401 ? 'Invalid API key. Please check and re-enter it.' : res.status===429 ? 'Rate limit reached. Wait a moment and try again.' : res.status>=500 ? 'OpenAI server error. Try again shortly.' : msg;
+      showError(friendly); return;
+    }
+
+    typingEl.style.display  = 'none';
+    markdownEl.style.display = 'block';
+
+    const reader  = res.body.getReader();
+    const decoder = new TextDecoder();
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      const lines = decoder.decode(value, { stream: true }).split('\n').filter(l => l.startsWith('data: '));
+      for (const line of lines) {
+        const payload = line.slice(6).trim();
+        if (payload === '[DONE]') continue;
+        try {
+          const parsed  = JSON.parse(payload);
+          const content = parsed.choices?.[0]?.delta?.content;
+          if (content) {
+            rawMarkdown += content;
+            markdownEl.innerHTML = marked.parse(rawMarkdown);
+            const ob = document.getElementById('output-body');
+            ob.scrollTop = ob.scrollHeight;
+          }
+        } catch {}
+      }
+    }
+
+    markdownEl.innerHTML = marked.parse(rawMarkdown);
+    const words  = rawMarkdown.trim().split(/\s+/).filter(Boolean).length;
+    const tokens = Math.round(rawMarkdown.length / 4);
+    metaWords.textContent  = `${words} words`;
+    metaTokens.textContent = `~${tokens} tokens`;
+    metaModel.textContent  = `model: ${model}`;
+    outputMeta.style.display = 'flex';
+    copyBtn.disabled  = false;
+    clearBtn.disabled = false;
+
+  } catch (err) {
+    showError('Request failed: ' + err.message);
+  } finally {
+    generating = false;
+    typingEl.style.display = 'none';
+    generateBtn.disabled   = false;
+    generateBtn.innerHTML  = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"/></svg> Generate Review';
+  }
+}
+
+function showError(msg) {
+  typingEl.style.display   = 'none';
+  markdownEl.style.display = 'none';
+  errorArea.style.display  = 'block';
+  errorArea.innerHTML = `<div class="error-banner" role="alert"><svg width="15" height="15" style="flex-shrink:0;margin-top:1px" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg><span>${msg.replace(/</g,'&lt;')}</span></div>`;
+}
+
+copyBtn.addEventListener('click', async () => {
+  try { await navigator.clipboard.writeText(rawMarkdown); showToast('Copied!'); }
+  catch { showToast('Select text manually to copy.'); }
+});
+clearBtn.addEventListener('click', () => {
+  rawMarkdown = ''; markdownEl.innerHTML = ''; markdownEl.style.display = 'none';
+  errorArea.style.display = 'none'; outputMeta.style.display = 'none';
+  outputEmpty.style.display = 'flex'; copyBtn.disabled = true; clearBtn.disabled = true;
+});
+
+function showToast(msg) {
+  toast.textContent = msg; toast.classList.add('show');
+  setTimeout(() => toast.classList.remove('show'), 2200);
+}
+
+buildSliders();
+</script>
+</body>
+</html>
