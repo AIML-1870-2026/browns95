@@ -68,6 +68,66 @@ header p {
 }
 #key-warning.visible { display: block; }
 
+/* ── API key bar ──────────────────────────────────────────────────────────── */
+#key-bar {
+  background: var(--accent-light);
+  border-bottom: 1px solid var(--border);
+  padding: .6rem 1.5rem;
+  display: flex;
+  align-items: center;
+  gap: .75rem;
+  flex-wrap: wrap;
+}
+.key-bar-label {
+  font-size: .8rem;
+  font-weight: 600;
+  color: var(--accent);
+  white-space: nowrap;
+}
+.key-input-wrap {
+  display: flex;
+  gap: .4rem;
+  flex: 1;
+  min-width: 240px;
+}
+.key-input-wrap input {
+  flex: 1;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--text);
+  font-family: var(--font);
+  font-size: .82rem;
+  padding: .4rem .75rem;
+  outline: none;
+  transition: border-color .15s;
+}
+.key-input-wrap input:focus { border-color: var(--accent-2); }
+.key-input-wrap button {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--text-muted);
+  font-size: .8rem;
+  padding: .4rem .65rem;
+  cursor: pointer;
+  transition: background .15s;
+}
+.key-input-wrap button:hover { background: var(--surface-2); }
+#key-status { font-size: .75rem; }
+#key-status.ok  { color: #16a34a; }
+#key-status.err { color: var(--danger); }
+#key-clear-btn {
+  font-size: .75rem;
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text-muted);
+  padding: .35rem .65rem;
+  cursor: pointer;
+}
+#key-clear-btn:hover { background: var(--surface-2); }
+
 /* ── Main container ───────────────────────────────────────────────────────── */
 .container {
   max-width: 800px;
@@ -306,9 +366,20 @@ footer {
 </head>
 <body>
 
+<!-- API key entry bar -->
+<div id="key-bar">
+  <span class="key-bar-label">🔑 OpenAI API Key</span>
+  <div class="key-input-wrap">
+    <input type="password" id="key-input" placeholder="sk-…  (held in memory only, never stored)" autocomplete="off" spellcheck="false"/>
+    <button id="key-show-btn" title="Show / hide">👁</button>
+  </div>
+  <span id="key-status">No key set</span>
+  <button id="key-clear-btn">Clear</button>
+</div>
+
 <!-- API key missing warning (shown on load if key is absent) -->
 <div id="key-warning">
-  ⚠️ No API key detected. Replace <code>__OPENAI_API_KEY__</code> in this file with your OpenAI key, or run <code>node build.js</code> after setting up <code>.env</code>.
+  ⚠️ No API key detected. Enter your key in the bar above, or replace <code>__OPENAI_API_KEY__</code> in this file with your real key.
 </div>
 
 <header>
@@ -425,15 +496,55 @@ const outputBody     = document.getElementById('output-body');
 const outputMeta     = document.getElementById('output-meta');
 const copyBtn        = document.getElementById('copy-btn');
 const keyWarning     = document.getElementById('key-warning');
+const keyInput       = document.getElementById('key-input');
+const keyShowBtn     = document.getElementById('key-show-btn');
+const keyStatus      = document.getElementById('key-status');
+const keyClearBtn    = document.getElementById('key-clear-btn');
 const toast          = document.getElementById('toast');
 
 let lastRawMarkdown = '';
 
-// ── API key check on load ─────────────────────────────────────────────────────
-const API_KEY = (window.OPENAI_API_KEY || '').trim();
-if (!API_KEY || API_KEY === '__OPENAI_API_KEY__') {
+// ── API key management (in memory only) ───────────────────────────────────────
+// Seed from build-injected value if present
+let runtimeKey = (window.OPENAI_API_KEY || '').trim();
+if (runtimeKey && runtimeKey !== '__OPENAI_API_KEY__') {
+  keyInput.value = runtimeKey;
+  setKeyStatus(runtimeKey);
+} else {
   keyWarning.classList.add('visible');
 }
+
+keyInput.addEventListener('input', () => {
+  runtimeKey = keyInput.value.trim();
+  setKeyStatus(runtimeKey);
+  keyWarning.classList.toggle('visible', !runtimeKey || runtimeKey === '__OPENAI_API_KEY__');
+});
+
+keyShowBtn.addEventListener('click', () => {
+  keyInput.type = keyInput.type === 'password' ? 'text' : 'password';
+});
+
+keyClearBtn.addEventListener('click', () => {
+  runtimeKey = ''; keyInput.value = '';
+  keyStatus.textContent = 'No key set';
+  keyStatus.className = '';
+  keyWarning.classList.add('visible');
+});
+
+function setKeyStatus(key) {
+  if (key.startsWith('sk-') && key.length > 20) {
+    keyStatus.textContent = '✓ Key set';
+    keyStatus.className = 'ok';
+  } else if (key.length > 0) {
+    keyStatus.textContent = 'Key looks incomplete';
+    keyStatus.className = 'err';
+  } else {
+    keyStatus.textContent = 'No key set';
+    keyStatus.className = '';
+  }
+}
+
+function getKey() { return runtimeKey || (window.OPENAI_API_KEY || '').trim(); }
 
 // ── Marked.js config ──────────────────────────────────────────────────────────
 marked.setOptions({ breaks: true, gfm: true });
@@ -454,10 +565,11 @@ async function handleGenerate() {
   }
   suppliesError.classList.remove('visible');
 
-  // Check key again (user may not have rebuilt)
-  const key = (window.OPENAI_API_KEY || '').trim();
+  // Get key from input or build-injected value
+  const key = getKey();
   if (!key || key === '__OPENAI_API_KEY__') {
-    showOutputError('No API key detected. Add your OpenAI key and reload (see the warning banner above).');
+    showOutputError('No API key set. Enter your OpenAI key in the bar at the top of the page.');
+    keyInput.focus();
     return;
   }
 
