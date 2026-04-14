@@ -1,0 +1,608 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Science Experiment Generator</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet"/>
+<script src="https://cdn.jsdelivr.net/npm/marked@9.1.6/marked.min.js"></script>
+<style>
+/* ── Reset & variables ─────────────────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg:           #f4f7fb;
+  --surface:      #ffffff;
+  --surface-2:    #f1f5f9;
+  --border:       #e2e8f0;
+  --text:         #1e293b;
+  --text-muted:   #64748b;
+  --accent:       #1a5c2a;     /* science green */
+  --accent-2:     #22863a;
+  --accent-light: #f0fdf4;
+  --danger:       #dc2626;
+  --shadow:       0 1px 3px rgba(0,0,0,.08), 0 4px 12px rgba(0,0,0,.05);
+  --radius:       10px;
+  --font:         'Inter', system-ui, sans-serif;
+}
+
+html, body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font);
+  min-height: 100vh;
+}
+
+/* ── Page header ──────────────────────────────────────────────────────────── */
+header {
+  background: var(--accent);
+  color: white;
+  padding: 1.25rem 1.5rem 1rem;
+  text-align: center;
+}
+header h1 {
+  font-size: clamp(1.25rem, 3vw, 1.75rem);
+  font-weight: 700;
+  letter-spacing: -.01em;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: .5rem;
+}
+header p {
+  font-size: .85rem;
+  opacity: .8;
+  margin-top: .35rem;
+}
+
+/* ── Warning banner (shown when API key is missing) ───────────────────────── */
+#key-warning {
+  display: none;
+  background: #fefce8;
+  border-bottom: 2px solid #fbbf24;
+  color: #92400e;
+  font-size: .85rem;
+  font-weight: 500;
+  padding: .7rem 1.5rem;
+  text-align: center;
+}
+#key-warning.visible { display: block; }
+
+/* ── Main container ───────────────────────────────────────────────────────── */
+.container {
+  max-width: 800px;
+  margin: 0 auto;
+  padding: 1.75rem 1.25rem 3rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+/* ── Form card ────────────────────────────────────────────────────────────── */
+.form-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  padding: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.form-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.25rem;
+}
+@media (max-width: 560px) { .form-row { grid-template-columns: 1fr; } }
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: .4rem;
+}
+.field.full { grid-column: 1 / -1; }
+
+label {
+  font-size: .8rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  letter-spacing: .02em;
+}
+label .req { color: var(--danger); margin-left: 2px; }
+
+select, textarea {
+  width: 100%;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--text);
+  font-family: var(--font);
+  font-size: .9rem;
+  padding: .55rem .75rem;
+  outline: none;
+  transition: border-color .15s, box-shadow .15s;
+}
+select {
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath fill='%2364748b' d='M4 6l4 4 4-4'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right .65rem center;
+  background-size: 16px;
+  padding-right: 2.2rem;
+  cursor: pointer;
+}
+select:focus, textarea:focus {
+  border-color: var(--accent-2);
+  box-shadow: 0 0 0 3px rgba(34,134,58,.15);
+}
+textarea { resize: vertical; min-height: 100px; line-height: 1.5; }
+
+.field-error {
+  font-size: .75rem;
+  color: var(--danger);
+  margin-top: .2rem;
+  display: none;
+}
+.field-error.visible { display: block; }
+
+/* ── Submit button ────────────────────────────────────────────────────────── */
+.btn-submit {
+  width: 100%;
+  background: var(--accent);
+  border: none;
+  border-radius: 8px;
+  color: white;
+  font-family: var(--font);
+  font-size: .95rem;
+  font-weight: 600;
+  padding: .75rem 1.5rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: .5rem;
+  transition: background .15s, transform .1s;
+}
+.btn-submit:hover:not(:disabled) { background: var(--accent-2); }
+.btn-submit:active:not(:disabled) { transform: scale(.98); }
+.btn-submit:disabled { opacity: .55; cursor: not-allowed; }
+
+/* ── Spinner ──────────────────────────────────────────────────────────────── */
+.spinner {
+  width: 16px; height: 16px;
+  border-radius: 50%;
+  border: 2.5px solid rgba(255,255,255,.35);
+  border-top-color: white;
+  animation: spin .65s linear infinite;
+  flex-shrink: 0;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ── Output section ───────────────────────────────────────────────────────── */
+#output-section {
+  display: none;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  overflow: hidden;
+}
+#output-section.visible { display: block; }
+
+.output-header {
+  background: var(--accent-light);
+  border-bottom: 1px solid var(--border);
+  padding: .85rem 1.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+.output-label {
+  font-size: .75rem;
+  font-weight: 700;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+  color: var(--accent);
+  display: flex;
+  align-items: center;
+  gap: .4rem;
+}
+.output-meta {
+  font-size: .75rem;
+  color: var(--text-muted);
+}
+
+.btn-copy {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text-muted);
+  font-family: var(--font);
+  font-size: .75rem;
+  padding: .3rem .75rem;
+  cursor: pointer;
+  transition: background .15s;
+  display: flex;
+  align-items: center;
+  gap: .3rem;
+}
+.btn-copy:hover { background: var(--surface-2); color: var(--text); }
+
+#output-body { padding: 1.75rem; }
+
+/* ── Markdown output styles ───────────────────────────────────────────────── */
+#output-body h1 { font-size: 1.4rem; font-weight: 700; color: var(--accent); margin: 0 0 1rem; }
+#output-body h2 { font-size: 1.1rem; font-weight: 700; color: var(--accent); margin: 1.75rem 0 .6rem; padding-bottom: .4rem; border-bottom: 2px solid var(--accent-light); }
+#output-body h3 { font-size: .95rem; font-weight: 600; margin: 1rem 0 .4rem; color: var(--text); }
+#output-body h4 { font-size: .9rem; font-weight: 600; margin: .8rem 0 .3rem; color: var(--text-muted); }
+#output-body p  { margin: 0 0 .75rem; line-height: 1.7; font-size: .92rem; }
+#output-body ul, #output-body ol { padding-left: 1.4rem; margin: 0 0 .75rem; }
+#output-body li { margin-bottom: .35rem; line-height: 1.6; font-size: .92rem; }
+#output-body hr { border: none; border-top: 1px solid var(--border); margin: 1.5rem 0; }
+#output-body strong { font-weight: 700; color: var(--text); }
+#output-body em { color: var(--text-muted); font-style: italic; }
+#output-body code { background: var(--surface-2); border: 1px solid var(--border); border-radius: 4px; font-size: .82rem; padding: .1rem .35rem; }
+#output-body blockquote { border-left: 3px solid var(--accent-2); background: var(--accent-light); padding: .5rem .9rem; border-radius: 0 6px 6px 0; margin: .75rem 0; color: var(--text-muted); font-size: .9rem; }
+
+/* Difficulty badge colour-coding via CSS targeting bold inside output */
+/* Easy=green, Medium=blue, Hard=amber, Advanced=red */
+#output-body strong {
+  /* base — overridden per-badge below via wrapping span injected by JS */
+}
+.diff-easy     { background:#dcfce7; color:#15803d; border-radius:4px; padding:.1rem .45rem; font-size:.78rem; }
+.diff-medium   { background:#dbeafe; color:#1d4ed8; border-radius:4px; padding:.1rem .45rem; font-size:.78rem; }
+.diff-hard     { background:#fef9c3; color:#854d0e; border-radius:4px; padding:.1rem .45rem; font-size:.78rem; }
+.diff-advanced { background:#fee2e2; color:#b91c1c; border-radius:4px; padding:.1rem .45rem; font-size:.78rem; }
+
+/* ── Error state ──────────────────────────────────────────────────────────── */
+.error-box {
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  border-radius: 8px;
+  padding: .85rem 1rem;
+  color: #b91c1c;
+  font-size: .875rem;
+  display: flex;
+  align-items: flex-start;
+  gap: .5rem;
+  line-height: 1.5;
+}
+
+/* ── Loading state inside output ──────────────────────────────────────────── */
+.loading-row {
+  display: flex;
+  align-items: center;
+  gap: .75rem;
+  padding: 1rem 0;
+  color: var(--text-muted);
+  font-size: .88rem;
+}
+.loading-row .spinner { border-color: rgba(26,92,42,.25); border-top-color: var(--accent); }
+
+/* ── Toast ────────────────────────────────────────────────────────────────── */
+.toast {
+  position: fixed; bottom: 1.5rem; right: 1.5rem;
+  background: #1e293b; color: white;
+  font-size: .8rem; padding: .5rem 1rem;
+  border-radius: 8px; box-shadow: 0 4px 20px rgba(0,0,0,.2);
+  opacity: 0; transform: translateY(8px);
+  transition: opacity .2s, transform .2s;
+  pointer-events: none; z-index: 100;
+}
+.toast.show { opacity: 1; transform: translateY(0); }
+
+/* ── Footer ───────────────────────────────────────────────────────────────── */
+footer {
+  text-align: center;
+  font-size: .75rem;
+  color: var(--text-muted);
+  padding: 0 1rem 2rem;
+}
+</style>
+</head>
+<body>
+
+<!-- API key missing warning (shown on load if key is absent) -->
+<div id="key-warning">
+  ⚠️ No API key detected. Replace <code>__OPENAI_API_KEY__</code> in this file with your OpenAI key, or run <code>node build.js</code> after setting up <code>.env</code>.
+</div>
+
+<header>
+  <h1>🔬 Science Experiment Generator</h1>
+  <p>Enter your available materials and grade level — AI will suggest safe, engaging experiments.</p>
+</header>
+
+<div class="container">
+
+  <!-- Input form -->
+  <div class="form-card">
+    <div class="form-row">
+
+      <div class="field">
+        <label for="grade-select">Grade Level</label>
+        <select id="grade-select">
+          <option value="K-2">K–2 (Kindergarten through 2nd Grade)</option>
+          <option value="3-5" selected>3rd–5th Grade</option>
+          <option value="6-8">6th–8th Grade</option>
+          <option value="9-10">9th–10th Grade</option>
+          <option value="11-12">11th–12th Grade</option>
+        </select>
+      </div>
+
+      <div class="field">
+        <label for="model-select">OpenAI Model</label>
+        <select id="model-select">
+          <option value="gpt-4.1">GPT-4.1</option>
+          <option value="gpt-4o" selected>GPT-4o</option>
+          <option value="gpt-4o-mini">GPT-4o Mini (faster / lower cost)</option>
+          <option value="gpt-4-turbo">GPT-4 Turbo</option>
+        </select>
+      </div>
+
+    </div>
+
+    <div class="field">
+      <label for="supplies-input">Available Supplies <span class="req">*</span></label>
+      <textarea
+        id="supplies-input"
+        rows="4"
+        placeholder="e.g. baking soda, vinegar, plastic cups, food coloring, paper towels, rubber bands..."
+      ></textarea>
+      <span class="field-error" id="supplies-error">Please list at least some materials before generating experiments.</span>
+    </div>
+
+    <button class="btn-submit" id="generate-btn" type="button">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+      Generate Experiments
+    </button>
+  </div>
+
+  <!-- Output section -->
+  <div id="output-section">
+    <div class="output-header">
+      <span class="output-label">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg>
+        Generated Experiments
+      </span>
+      <div style="display:flex;align-items:center;gap:.75rem;flex-wrap:wrap">
+        <span class="output-meta" id="output-meta"></span>
+        <button class="btn-copy" id="copy-btn">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
+          Copy
+        </button>
+      </div>
+    </div>
+    <div id="output-body"></div>
+  </div>
+
+</div>
+
+<footer>
+  Powered by OpenAI &mdash; API key held in memory only &mdash; no data is stored or transmitted beyond OpenAI
+</footer>
+
+<div class="toast" id="toast"></div>
+
+<!-- API key injected at build time — never commit this file after running build.js -->
+<script>window.OPENAI_API_KEY = "__OPENAI_API_KEY__";</script>
+
+<script>
+// ── Constants ─────────────────────────────────────────────────────────────────
+const SYSTEM_PROMPT =
+  'You are a creative and knowledgeable science teacher. When given a grade level and a list of available materials, ' +
+  'you generate a set of safe, engaging, grade-appropriate science experiments. Format your response in markdown. ' +
+  'Each experiment should include a title, a brief description, a list of required materials (drawn from the supplied list), ' +
+  'step-by-step instructions, and the expected scientific concept or learning outcome. Also include a difficulty rating for each experiment.';
+
+function buildUserMessage(grade, supplies) {
+  return (
+    `Grade level: ${grade}\n\n` +
+    `Available materials: ${supplies}\n\n` +
+    `Please generate 3 to 5 science experiments appropriate for this grade level using only the materials listed above ` +
+    `(or common household/classroom items). For each experiment, include:\n` +
+    `- A clear title\n` +
+    `- A difficulty rating: Easy / Medium / Hard / Advanced\n` +
+    `- A brief overview (2–3 sentences)\n` +
+    `- Materials needed\n` +
+    `- Step-by-step instructions\n` +
+    `- The science concept being demonstrated\n\n` +
+    `Format the entire response in markdown.`
+  );
+}
+
+// ── DOM refs ──────────────────────────────────────────────────────────────────
+const gradeSelect    = document.getElementById('grade-select');
+const modelSelect    = document.getElementById('model-select');
+const suppliesInput  = document.getElementById('supplies-input');
+const suppliesError  = document.getElementById('supplies-error');
+const generateBtn    = document.getElementById('generate-btn');
+const outputSection  = document.getElementById('output-section');
+const outputBody     = document.getElementById('output-body');
+const outputMeta     = document.getElementById('output-meta');
+const copyBtn        = document.getElementById('copy-btn');
+const keyWarning     = document.getElementById('key-warning');
+const toast          = document.getElementById('toast');
+
+let lastRawMarkdown = '';
+
+// ── API key check on load ─────────────────────────────────────────────────────
+const API_KEY = (window.OPENAI_API_KEY || '').trim();
+if (!API_KEY || API_KEY === '__OPENAI_API_KEY__') {
+  keyWarning.classList.add('visible');
+}
+
+// ── Marked.js config ──────────────────────────────────────────────────────────
+marked.setOptions({ breaks: true, gfm: true });
+
+// ── Generate ──────────────────────────────────────────────────────────────────
+generateBtn.addEventListener('click', handleGenerate);
+suppliesInput.addEventListener('keydown', e => {
+  if (e.key === 'Enter' && e.ctrlKey) handleGenerate();
+});
+
+async function handleGenerate() {
+  // Client-side validation
+  const supplies = suppliesInput.value.trim();
+  if (!supplies) {
+    suppliesError.classList.add('visible');
+    suppliesInput.focus();
+    return;
+  }
+  suppliesError.classList.remove('visible');
+
+  // Check key again (user may not have rebuilt)
+  const key = (window.OPENAI_API_KEY || '').trim();
+  if (!key || key === '__OPENAI_API_KEY__') {
+    showOutputError('No API key detected. Add your OpenAI key and reload (see the warning banner above).');
+    return;
+  }
+
+  const grade = gradeSelect.value;
+  const model = modelSelect.value;
+
+  // UI: loading state
+  generateBtn.disabled = true;
+  generateBtn.innerHTML = '<div class="spinner"></div> Generating…';
+  outputSection.classList.add('visible');
+  outputBody.innerHTML = '<div class="loading-row"><div class="spinner"></div> Thinking up experiments…</div>';
+  outputMeta.textContent = '';
+  lastRawMarkdown = '';
+
+  // ── Fetch from OpenAI (/v1/chat/completions) ───────────────────────────────
+  // Pattern from LLM switchboard: POST with Authorization Bearer, JSON body,
+  // catch non-2xx and network failures separately.
+  let response;
+  try {
+    response = await fetch('https://api.openai.com/v1/chat/completions', {
+      method:  'POST',
+      headers: {
+        'Authorization': `Bearer ${key}`,
+        'Content-Type':  'application/json',
+      },
+      body: JSON.stringify({
+        model,
+        messages: [
+          { role: 'system', content: SYSTEM_PROMPT },
+          { role: 'user',   content: buildUserMessage(grade, supplies) },
+        ],
+        temperature: 0.7,
+        max_tokens:  2000,
+      }),
+    });
+  } catch (networkErr) {
+    // Network failure (no response at all)
+    showOutputError('Network error. Please check your connection and try again.');
+    resetButton();
+    return;
+  }
+
+  // Non-2xx HTTP status — parse error message from OpenAI response body
+  if (!response.ok) {
+    let errMsg = `Error ${response.status}`;
+    try {
+      const errBody = await response.json();
+      const detail  = errBody?.error?.message;
+      if (detail) errMsg += `: ${detail}`;
+      else if (response.status === 401) errMsg += ': Invalid API key. Check your key and rebuild.';
+      else if (response.status === 429) errMsg += ': Rate limit exceeded. Please wait a moment and try again.';
+      else if (response.status >= 500)  errMsg += ': OpenAI server error. Try again shortly.';
+    } catch {}
+    showOutputError(errMsg);
+    resetButton();
+    return;
+  }
+
+  // Parse successful response
+  let data;
+  try {
+    data = await response.json();
+  } catch {
+    showOutputError('Received an unreadable response from OpenAI. Please try again.');
+    resetButton();
+    return;
+  }
+
+  const raw = data?.choices?.[0]?.message?.content || '';
+
+  if (!raw.trim()) {
+    outputBody.innerHTML = '<p style="color:var(--text-muted);font-size:.9rem">No experiments were returned. Try adjusting your supplies or grade level.</p>';
+  } else {
+    lastRawMarkdown = raw;
+    const html = marked.parse(raw);
+    outputBody.innerHTML = html;
+    // Post-process: add colour badges to difficulty ratings
+    colourDifficultyBadges(outputBody);
+    // Scroll to output
+    outputSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
+  // Meta line
+  const words  = raw.trim().split(/\s+/).filter(Boolean).length;
+  const tokens = data?.usage?.completion_tokens;
+  outputMeta.textContent = tokens
+    ? `${words} words · ${tokens} tokens used`
+    : `${words} words`;
+
+  resetButton();
+}
+
+// ── Difficulty badge colouring ─────────────────────────────────────────────────
+// Wraps bolded difficulty keywords in styled <span> elements.
+function colourDifficultyBadges(container) {
+  const map = { easy: 'diff-easy', medium: 'diff-medium', hard: 'diff-hard', advanced: 'diff-advanced' };
+  container.querySelectorAll('strong, b').forEach(el => {
+    const txt = el.textContent.trim().toLowerCase();
+    if (map[txt]) {
+      const span = document.createElement('span');
+      span.className = map[txt];
+      span.textContent = el.textContent.trim();
+      el.replaceWith(span);
+    }
+  });
+}
+
+// ── Error display ──────────────────────────────────────────────────────────────
+function showOutputError(msg) {
+  outputSection.classList.add('visible');
+  outputBody.innerHTML = `
+    <div class="error-box" role="alert">
+      <svg width="16" height="16" style="flex-shrink:0;margin-top:1px" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
+      </svg>
+      <span>${msg.replace(/</g,'&lt;')}</span>
+    </div>`;
+}
+
+// ── Copy button ────────────────────────────────────────────────────────────────
+copyBtn.addEventListener('click', async () => {
+  if (!lastRawMarkdown) return;
+  try {
+    await navigator.clipboard.writeText(lastRawMarkdown);
+    showToast('Copied to clipboard!');
+  } catch {
+    showToast('Could not copy — select the text manually.');
+  }
+});
+
+// ── Helpers ────────────────────────────────────────────────────────────────────
+function resetButton() {
+  generateBtn.disabled = false;
+  generateBtn.innerHTML = `
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+      <polygon points="5 3 19 12 5 21 5 3"/>
+    </svg>
+    Generate Experiments`;
+}
+
+function showToast(msg) {
+  toast.textContent = msg;
+  toast.classList.add('show');
+  setTimeout(() => toast.classList.remove('show'), 2200);
+}
+</script>
+</body>
+</html>

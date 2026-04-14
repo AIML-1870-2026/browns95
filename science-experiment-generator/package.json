@@ -1,0 +1,12 @@
+{
+  "name": "science-experiment-generator",
+  "version": "1.0.0",
+  "description": "AI-powered science experiment generator for teachers and students",
+  "scripts": {
+    "build": "node build.js",
+    "dev": "node build.js && open index.html"
+  },
+  "dependencies": {
+    "dotenv": "^16.3.1"
+  }
+}
